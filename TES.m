@@ -457,7 +457,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
           group4 = matlab.system.display.SectionGroup( ...
               'Title', 'Particle Properties', ...
               'PropertyList', {'kp', 'rhopPack', 'rhopLoose', 'cpp', 'mup'});                             
-          groups = [group1, group2, group3, group4];    
+          groups = [group2, group3, group4];    
        end
        
     end

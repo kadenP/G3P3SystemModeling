@@ -501,9 +501,9 @@ model FallingParticleReceiverSystem
       Modelica.Blocks.Interfaces.RealOutput CO2OutletTemperature annotation(
         Placement(visible = true, transformation(origin = {98, -22}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {136, -24}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
       Modelica.Blocks.Interfaces.RealOutput ParticleOutletTemperature annotation(
-        Placement(visible = true, transformation(origin = {-24, -96}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {-28, -128}, extent = {{-10, -10}, {10, 10}}, rotation = -90)));
+        Placement(visible = true, transformation(origin = {-48, -88}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {-28, -128}, extent = {{-10, -10}, {10, 10}}, rotation = -90)));
       Modelica.Blocks.Interfaces.RealInput m_dot_CO2 annotation(
-        Placement(visible = true, transformation(origin = {-24, -96}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {-26, 130}, extent = {{-10, -10}, {10, 10}}, rotation = -90)));
+        Placement(visible = true, transformation(origin = {36, -88}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {-26, 130}, extent = {{-10, -10}, {10, 10}}, rotation = -90)));
     equation
 //Connections
       m_dot_s_in = ParticleInlet.m_dot;
