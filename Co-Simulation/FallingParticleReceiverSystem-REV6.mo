@@ -518,7 +518,7 @@ model FallingParticleReceiverSystem
       T_CO2_out = CO2OutletTemperature;
       T_s_out = ParticleOutletTemperature;
 //Mass Balance
-      m_dot_s_in = m_dot_s_out;
+      m_dot_s_in = m_dot_s_out; 
       m_dot_s_in = rho_s * phi_s * v_s * hc_s * N_plate * W;
       m_dot_CO2_in = m_dot_CO2_out;
       m_dot_CO2_in = rho_CO2 * v_CO2 * hc_CO2 * N_plate * W;

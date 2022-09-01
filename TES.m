@@ -424,13 +424,13 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
     
     methods(Static, Access = protected)
        %% system block input/output customization
-%        function icon = getIconImpl(~)
-%           icon = sprintf('Particle\nTES\nBin'); 
-%        end
-        function icon = getIconImpl(~)
-            % Define icon for System block
-            icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
-        end
+       function icon = getIconImpl(~)
+          icon = sprintf('Particle\nTES\nBin'); 
+       end
+%         function icon = getIconImpl(~)
+%             % Define icon for System block
+%             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
+%         end
         function [in1name, in2name, in3name] = getInputNamesImpl(~)
           in1name = 'Tin';
           in2name = 'mdot';
@@ -441,7 +441,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
           out2name = 'Tbulk';
           out3name = 'Estored';
           out4name = 'ztop';
-        end    
+        end             
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
               'Title', 'Mesh Parameters', ...
