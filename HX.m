@@ -10,14 +10,17 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable)       
         n = 100                     % number of discretizations in domain
-        hc_s = 0.006                % (m) solid channel width
-        hc_CO2 = 0.001              % (m) CO2 channel width
+        t_s = 0.006                 % (m) solid channel width
+        t_CO2 = 0.001               % (m) CO2 channel width
         t_m = 0.003                 % (m) metal thicknesss
         H = 1                       % (m) heat exchanger height
         W = 0.5                     % (m) heat exchanger width
         N_plate = 25                % number of parallel plates
-        h_conv_CO2 = 1000           % (W/m2K) CO2 heat transfer coefficient
-        h_conv_sw = 180             % (W/m2K) solid-wall heat transfer coefficient        
+        h_s = 180                   % (W/m2K) solid-wall heat transfer coefficient 
+        h_CO2 = 1000                % (W/m2K) CO2 heat transfer coefficient      
+        Ts0                         % (°C) initial temperature of particles
+        Tco20                       % (°C) initial temperature of sCO2
+        Tm0                         % (°C) initial temperature of metal
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction        
@@ -39,6 +42,9 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         xs                          % (°C) particle temperature states
         xCO2                        % (°C) sCO2 temperature states
         xm                          % (°C) metal temperature states
+        xs0                         % (°C) particle temperature IC
+        xCO20                       % (°C) sCO2 temperature IC
+        xm0                         % (°C) metal temperature IC
         u                           % (°C) temperature inputs
         Ts_in                       % (°C) particle inlet temperature
         Tco2_in                     % (°C) particle inlet temperature
@@ -86,7 +92,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         end
         function [out1name, out2name, out3name, out4name, out5name, ...
                   out6name, out7name, out8name] = getOutputNamesImpl(~)
-          out1name = 'Tsout';
+          out1name = 'Ts_out';
           out2name = 'Tco2_out';
           out3name = 'mdot_s_out';
           out4name = 'mdot_CO2_out';
@@ -112,7 +118,15 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
     methods(Access = protected)
         %% Common functions
         function setupImpl(obj)
-            % Perform one-time calculations, such as computing constants
+            % Perform one-time calculations, such as computing constants 
+            obj.xs0 = obj.Ts0*ones(obj.n, 1);
+            obj.xCO20 = obj.Tco20*ones(obj.n, 1);
+            obj.xm0 = obj.Tm0*ones(obj.n, 1);
+            obj.x0 = [obj.xs0; obj.xCO20; obj.xm0];
+            obj.kappa_s = obj.h_s/(obj.cp_s*obj.rho_s*obj.phi_s*obj.t_s);
+            obj.kappa_CO2 = obj.h_CO2/(obj.cp_CO2*obj.rho_CO2*obj.t_CO2);
+            obj.kappa_ms = obj.h_s/(obj.cp_m*obj.rho_m*obj.t_m);
+            obj.kappa_mCO2 = obj.h_CO2/(obj.cp_m*obj.rho_m*obj.t_m);
 
         end
         function resetImpl(obj)
@@ -121,10 +135,18 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [y1, y2, y3, y4, y5, y6, y7, y8] = ...
-                stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in)
+        function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
+                Tm, Q_CO2] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
+                        
+            % compute variables dependent on inputs
+            mdot_s_out = mdot_s_in;
+            mdot_CO2_out = mdot_CO2_in;
+            obj.v_s = mdot_s_in/ ...
+                      (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);     
+            obj.v_CO2 = mdot_CO2_in/ ...
+                      (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
            
             
             % update initial condition
@@ -177,7 +199,13 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             flag = false;
         end        
         %% model functions
-        
+        function [xs, xCO2, xm] = iterateTemps(obj)
+            % uses the developed semi-discrete heat exchanger model to
+            % compute new temperatures for the particles, sCO2, and metal
+            % throughout the heat exchanger.
+            
+            
+        end
         
         
         
