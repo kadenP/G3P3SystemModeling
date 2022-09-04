@@ -1177,7 +1177,7 @@ model FallingParticleReceiverSystem
         Placement(visible = true, transformation(origin = {-170, 170}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
       Modelica.Blocks.Math.Add add1(k2 = -1) annotation(
         Placement(visible = true, transformation(origin = {-122, 164}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
-  Modelica.Blocks.Tables.CombiTable1Ds weatherCombiTable1Ds(tableOnFile=true, tableName="dniData", fileName=Modelica.Utilities.Files.loadResource("C:\Users\Owner\OneDrive\PhD Research\Modelica Model\ABQ_DNI_Lookup.txt"), columns={2}) annotation(
+  Modelica.Blocks.Tables.CombiTable1Ds weatherCombiTable1Ds(tableOnFile=true, tableName="dniData", fileName=Modelica.Utilities.Files.loadResource("C:\Users\Owner\OneDrive\PhD Research\G3P3SystemModeling\GitFiles\Co-Simulation\ABQ_DNI_Lookup.txt"), columns={2}) annotation(
         Placement(visible = true, transformation(origin = {-158, -38}, extent = {{-10, -10}, {10, 10}}, rotation = 90)));
   Modelica.Blocks.Sources.ContinuousClock continuousClock annotation(
         Placement(visible = true, transformation(origin = {-164, -196}, extent = {{-10, -10}, {10, 10}}, rotation = 90)));

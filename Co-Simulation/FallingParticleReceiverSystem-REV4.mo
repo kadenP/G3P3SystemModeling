@@ -1179,8 +1179,6 @@ model FallingParticleReceiverSystem
         Placement(visible = true, transformation(origin = {-170, 170}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
       Modelica.Blocks.Math.Add add1(k2 = -1) annotation(
         Placement(visible = true, transformation(origin = {-122, 164}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
-  Modelica.Blocks.Tables.CombiTable1Ds weatherCombiTable1Ds annotation(
-        Placement(visible = true, transformation(origin = {-152, 72}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
     equation 
       connect(Weather.Insolation, Field.Insolation) annotation(
         Line(points = {{-47, 218}, {-50, 218}, {-50, 180}}));

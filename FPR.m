@@ -1,4 +1,4 @@
-classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
+classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
     % This MATLAB system block can be used to dynamically model the hot and cold thermal storage bins as a function of the particle inlet temperature and the mass flow rate into or out of the bin. It outputs the corresponding particle outlet temperature at each time step.
     %
     % NOTE: When renaming the class name Untitled, the file name
@@ -9,21 +9,22 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
 
     % Public, nontunable properties
     properties (Nontunable) 
-        Tinf = 25                   % (°C) ambient temperature
         Ts0 = 25                    % (°C) initial temperature of particles
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction
         sigma = 2.67e-8             % (W/m2K4) stephan-boltzman constant
         epsilon_s = 0.88            % emisivity of falling particles
-        alpha_s = 0.88              % absorbtivity of falling particles
-        H = 1                       % (m) height of apperature
-        W = 1                       % (m) width of apperature
-        d = 0.1                     % (m) depth of falling particle curtain       
+        alpha_s = 0.92              % absorbtivity of falling particles
+        H = 1.2                     % (m) height of apperature
+        W = 1.2                     % (m) width of apperature
+        d = 0.0417                  % (m) depth of falling particle curtain       
     end
 
     % properties that shouldn't be set by user
-    properties (Access = protected)  
+    properties (Access = protected) 
+        Tinf                        % (°C) ambient temperature (input)
+        x0                          % (°C) IC for curtain temp
         tNow                        % (s) current time
         dt                          % (s) current time step 
         mdot                        % (kg/s) FPR flow rate
@@ -49,18 +50,19 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
     
     methods(Static, Access = protected)
        %% system block input/output customization
-%        function icon = getIconImpl(~)
-%           icon = sprintf('Particle\nTES\nBin'); 
-%        end
-        function icon = getIconImpl(~)
-            % Define icon for System block
-            icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
-        end
-        function [in1name, in2name, in3name, in4name] = getInputNamesImpl(~)
+       function icon = getIconImpl(~)
+          icon = sprintf('Falling\nParticle\nReciever'); 
+       end
+%         function icon = getIconImpl(~)
+%             % Define icon for System block
+%             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
+%         end
+        function [in1name, in2name, in3name, in4name, in5name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
-          in2name = 'mdot_s_in';
-          in3name = 'Qsolar';
-          in4name = 't';
+          in2name = 'Tinf';
+          in3name = 'mdot_s_in';
+          in4name = 'Qsolar';
+          in5name = 't';
         end
         function [out1name, out2name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
@@ -72,7 +74,7 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
               'PropertyList', {'H', 'W', 'd'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
-              'PropertyList', {'cp_s', 'rho_s', 'phi_s', 'epsilon_s', ...
+              'PropertyList', {'Ts0', 'cp_s', 'rho_s', 'phi_s', 'epsilon_s', ...
               'alpha_s'});                            
           groups = [group1, group2];    
        end
@@ -84,6 +86,7 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
         function setupImpl(obj)
             % Perform one-time calculations, such as computing constants 
             obj.tNow = 0;
+            obj.x0 = obj.Ts0;
             obj.Vr = obj.H*obj.W*obj.d;
             obj.Ar = obj.H*obj.W;
             
@@ -95,7 +98,7 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_s_out] = stepImpl(obj, Ts_in, mdot_s_in, Qsolar)
+        function [Ts_out, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, mdot_s_in, Qsolar, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
@@ -103,13 +106,14 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
             % compute variables dependent on inputs
             mdot_s_out = mdot_s_in;
             obj.mdot = mdot_s_in;
+            obj.Tinf = Tinf;
             
             % calculate current temperature of particles in apperature
-            stepTempSolution(obj, Ts_in, Qsolar);
-
+            Ts_out = stepTempSolution(obj, Ts_in, Qsolar);
                       
-            % update time
+            % update time and initial condition
             obj.tNow = obj.tNow + obj.dt;
+            obj.x0 = Ts_out;
                                                                                                                 
         end       
         %% Backup/restore functions
@@ -153,17 +157,21 @@ classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
             flag = false;
         end        
         %% model functions
-        function stepTempSolution(obj, Ts_in, Qsolar)
+        function Ts = stepTempSolution(obj, Ts_in, Qsolar)
             % calculates the next lumped temperature solution for the
             % falling particle temperature outlet
-            F_ = @(x) obj.alpha_s*Qsolar - ...
-                obj.sigma_s*obj.epsilon_s*obj.Ar*(x^4 - ...
-                (obj.T2C(obj.Tinf)^4)) + obj.mdot*obj.cp_s*(x - Ts_in);
-            
-            
-            % implement RK45 method to step to next temperature w F_
-            
-            
+            F_ = @(x) 1/(obj.rho_s*obj.cp_s*obj.Vr)*(obj.alpha_s*Qsolar - ...
+                obj.sigma*obj.epsilon_s*obj.Ar*(x^4 - ...
+                (obj.C2K(obj.Tinf)^4)) - ...
+                obj.mdot*obj.cp_s*(x - obj.C2K(Ts_in)));
+                       
+            % implement second order midpoint method to step to next temperature w F_
+            beta = 1;
+            TsK = obj.C2K(obj.x0) + ...
+                obj.dt*((1 - 1/(2*beta))*F_(obj.C2K(obj.x0)) + ...
+                1/(2*beta)*F_(obj.C2K(obj.x0) + beta*obj.dt*F_(obj.C2K(obj.x0))));
+            Ts = TsK - 273.15;
+                        
         end
         function T = C2K(~, TC)
            T = TC + 273.15; 
