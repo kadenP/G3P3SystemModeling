@@ -1,5 +1,11 @@
-classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
-    % This MATLAB system block simulates the heating of particles falling through the falling particle reciever. It is approximated as a lumped system with the solar flux coming directly from the heliostat field
+classdef Reciever < matlab.System & matlab.system.mixin.CustomIcon
+    % This MATLAB system block can be used to dynamically model the hot and cold thermal storage bins as a function of the particle inlet temperature and the mass flow rate into or out of the bin. It outputs the corresponding particle outlet temperature at each time step.
+    %
+    % NOTE: When renaming the class name Untitled, the file name
+    % and constructor name must be updated to use the class name.
+    %
+    % This template includes most, but not all, possible properties,
+    % attributes, and methods that you can implement for a System object.
 
     % Public, nontunable properties
     properties (Nontunable) 
@@ -9,7 +15,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         phi_s = 0.6                 % solid volume fraction
         sigma = 2.67e-8             % (W/m2K4) stephan-boltzman constant
         epsilon_s = 0.88            % emisivity of falling particles
-        alpha_s = 0.92              % absorbtivity of falling particles
+        alpha_s = 0.88              % absorbtivity of falling particles
         H = 1.2                     % (m) height of apperature
         W = 1.2                     % (m) width of apperature
         d = 0.0417                  % (m) depth of falling particle curtain       
@@ -92,7 +98,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, mdot_s_in, Qsolar, t)
+        function [Ts_out, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, mdot_s_in, Qsolar)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
@@ -103,11 +109,11 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.Tinf = Tinf;
             
             % calculate current temperature of particles in apperature
-            Ts_out = stepTempSolution(obj, Ts_in, Qsolar);
+            stepTempSolution(obj, Ts_in, Qsolar);
+
                       
-            % update time and initial condition
+            % update time
             obj.tNow = obj.tNow + obj.dt;
-            obj.x0 = Ts_out;
                                                                                                                 
         end       
         %% Backup/restore functions
@@ -155,17 +161,18 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             % calculates the next lumped temperature solution for the
             % falling particle temperature outlet
             F_ = @(x) 1/(obj.rho_s*obj.cp_s*obj.Vr)*(obj.alpha_s*Qsolar - ...
-                obj.sigma*obj.epsilon_s*obj.Ar*(x^4 - ...
-                (obj.C2K(obj.Tinf)^4)) - ...
+                obj.sigma_s*obj.epsilon_s*obj.Ar*(x^4 - ...
+                (obj.C2K(obj.Tinf)^4)) + ...
                 obj.mdot*obj.cp_s*(x - obj.C2K(Ts_in)));
-                       
+            
+            
             % implement second order midpoint method to step to next temperature w F_
-            beta = 1;
+            beta = 0.5;
             TsK = obj.C2K(obj.x0) + ...
-                obj.dt*((1 - 1/(2*beta))*F_(obj.C2K(obj.x0)) + ...
-                1/(2*beta)*F_(obj.C2K(obj.x0) + beta*obj.dt*F_(obj.C2K(obj.x0))));
-            Ts = TsK - 273.15;
-                        
+                obj.dt*((1 - 1/(2*beta))*F_(obj.C2K(obj.x0) + ...
+                1/(2*beta)*F_(
+            
+            
         end
         function T = C2K(~, TC)
            T = TC + 273.15; 

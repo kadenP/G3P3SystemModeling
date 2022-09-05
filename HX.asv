@@ -1,5 +1,11 @@
 classdef HX < matlab.System & matlab.system.mixin.CustomIcon
-    % This MATLAB system block simulates transient behavior of the particle-to-sCO2 heat exchanger. The particle, sCO2, and metal temperatures are computed at each time step accross the defined discrete mesh.
+    % This MATLAB system block can be used to dynamically model the hot and cold thermal storage bins as a function of the particle inlet temperature and the mass flow rate into or out of the bin. It outputs the corresponding particle outlet temperature at each time step.
+    %
+    % NOTE: When renaming the class name Untitled, the file name
+    % and constructor name must be updated to use the class name.
+    %
+    % This template includes most, but not all, possible properties,
+    % attributes, and methods that you can implement for a System object.
 
     % Public, nontunable properties
     properties (Nontunable)       
@@ -43,7 +49,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         xm0                         % (°C) metal temperature IC
         u                           % (°C) temperature inputs
         Ts_in                       % (°C) particle inlet temperature
-        Tco2_in                     % (°C) sCO2 inlet temperature
+        Tco2_in                     % (°C) particle inlet temperature
         A                           % (1/s) 3nx3n state matrix
         As                          % (1/s) nx3n particle state matrix eqs
         Aco2                        % (1/s) nx3n sCO2 state matrix eqs
@@ -126,7 +132,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             obj.kappa_ms = obj.h_s/(obj.cp_m*obj.rho_m*obj.t_m);
             obj.kappa_mCO2 = obj.h_CO2/(obj.cp_m*obj.rho_m*obj.t_m);
             obj.delta = obj.H/(obj.n-2);
-            obj.pos = linspace(0, obj.H, obj.n);
+            obj.pos = 0:obj.delta:obj.H;
 
         end
         function resetImpl(obj)
@@ -136,11 +142,10 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
-                Tm, Q_CO2, x_] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
+                Tm, Q_CO2, obj] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
-            x_ = obj.pos;
                         
             % compute variables dependent on inputs
             mdot_s_out = mdot_s_in;

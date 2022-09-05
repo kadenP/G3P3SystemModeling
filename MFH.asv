@@ -1,61 +1,31 @@
-classdef HX < matlab.System & matlab.system.mixin.CustomIcon
-    % This MATLAB system block simulates transient behavior of the particle-to-sCO2 heat exchanger. The particle, sCO2, and metal temperatures are computed at each time step accross the defined discrete mesh.
+classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
+    % This MATLAB system block simulates transient behavior of the mass flow hopper that is used to regulate the flow of particles through a particular component. 
 
     % Public, nontunable properties
     properties (Nontunable)       
         n = 20                      % number of discretizations in domain
-        t_s = 0.003                 % (m) solid channel width
-        t_CO2 = 0.001               % (m) CO2 channel width
-        t_m = 0.003                 % (m) metal thicknesss
-        H = 1.5                     % (m) heat exchanger height
-        W = 0.6                     % (m) heat exchanger width
-        N_plate = 33                % number of parallel plates
-        h_s = 450                   % (W/m2K) solid-wall heat transfer coefficient 
-        h_CO2 = 3000                % (W/m2K) CO2 heat transfer coefficient      
+        H = 1.5                     % (m) hopper height
+        D = 0.6                     % (m) hopper diameter     
         Ts0 = 25                    % (°C) initial temperature of particles
-        Tco20 = 25                  % (°C) initial temperature of sCO2
-        Tm0 = 25                    % (°C) initial temperature of metal
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
-        phi_s = 0.6                 % solid volume fraction        
-        cp_CO2 = 1250               % (J/kgK)  specific heat
-        rho_CO2 = 110               % (kg/m3) CO2 density        
-        cp_m = 500                  % (J/kgK) metal specific heat
-        rho_m = 8000                % (kg/m3) metal density                              
+        phi_s = 0.6                 % solid volume fraction                                    
     end
 
     % properties that shouldn't be set by user
     properties (Access = protected)  
         tNow                        % (s) current time
         dt                          % (s) current time step
+        Ac                          % (m2) cross-sectional area of hopper
+        Vbin                        % (m3) volume of hopper
         v_s                         % (m/s) solid velocity       
-        v_CO2                       % (m/s) CO2 velocity
-        Q_CO2                       % (W) sCO2 heat addition
         pos                         % (m) position vector
         delta                       % (m) mesh size
         x                           % (°C) temperature states
-        x0                          % (°C) initial condition
-        xs                          % (°C) particle temperature states
-        xCO2                        % (°C) sCO2 temperature states
-        xm                          % (°C) metal temperature states
-        xs0                         % (°C) particle temperature IC
-        xCO20                       % (°C) sCO2 temperature IC
-        xm0                         % (°C) metal temperature IC
-        u                           % (°C) temperature inputs
+        x0                          % (°C) initial condition        
         Ts_in                       % (°C) particle inlet temperature
-        Tco2_in                     % (°C) sCO2 inlet temperature
-        A                           % (1/s) 3nx3n state matrix
-        As                          % (1/s) nx3n particle state matrix eqs
-        Aco2                        % (1/s) nx3n sCO2 state matrix eqs
-        Am                          % (1/s) nx3n metal state matrix eqs
-        B                           % (1/s) 3nx2 input matrix
-        Bs                          % (1/s) 3nx1 particle input matrix
-        Bco2                        % (1/s) 3nx1 sCO2 input matrix
-        kappa_s                     % (1/s) particle kinematic coefficient
-        kappa_CO2                   % (1/s) sCO2 kinematic coefficient
-        kappa_ms                    % (1/s) metal-s kinematic coefficient
-        kappa_mCO2                  % (1/s) metal-sCO2 kinematic coefficient
-        
+        A                           % (1/s) nxn state matrix
+        B                           % (1/s) nx1 input matrix       
     end
 
     % Pre-computed constants
@@ -73,40 +43,31 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
     
     methods(Static, Access = protected)
        %% system block input/output customization
-%        function icon = getIconImpl(~)
-%           icon = sprintf('Particle\nTES\nBin'); 
-%        end
-        function icon = getIconImpl(~)
-            % Define icon for System block
-            icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
-        end
-        function [in1name, in2name, in3name, in4name, in5name] = getInputNamesImpl(~)
+       function icon = getIconImpl(~)
+          icon = sprintf('Mass\nFlow\nHopper'); 
+       end
+%         function icon = getIconImpl(~)
+%             % Define icon for System block
+%             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
+%         end
+        function [in1name, in2name, in3name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
-          in2name = 'Tco2_in';
-          in3name = 'mdot_s_in';
-          in4name = 'mdot_CO2_in';
-          in5name = 't';
+          in2name = 'mdot_s_in';
+          in3name = 't';
         end
-        function [out1name, out2name, out3name, out4name, out5name, ...
-                  out6name, out7name, out8name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name, out4name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
-          out2name = 'Tco2_out';
-          out3name = 'mdot_s_out';
-          out4name = 'mdot_CO2_out';
-          out5name = 'Ts';
-          out6name = 'Tco2';
-          out7name = 'Tm';
-          out8name = 'Q_CO2';
+          out2name = 'mdot_s_out';
+          out3name = 'Ts';
+          out4name = 'x';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
               'Title', 'Geometry Parameters', ...
-              'PropertyList', {'n', 't_s', 't_CO2', 't_m', 'H', 'W', ...
-                               'N_plate'});          
+              'PropertyList', {'n', 'H', 'D'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
-              'PropertyList', {'h_s', 'h_CO2', 'cp_s', 'rho_s', 'phi_s', ...
-                               'cp_CO2', 'rho_CO2', 'cp_m', 'rho_m'});                            
+              'PropertyList', {'Ts0', 'cp_s', 'rho_s', 'phi_s'});                            
           groups = [group1, group2];    
        end
        
@@ -117,17 +78,11 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         function setupImpl(obj)
             % Perform one-time calculations, such as computing constants 
             obj.tNow = 0;
-            obj.xs0 = obj.Ts0*ones(obj.n, 1);
-            obj.xCO20 = obj.Tco20*ones(obj.n, 1);
-            obj.xm0 = obj.Tm0*ones(obj.n, 1);
-            obj.x0 = [obj.xs0; obj.xCO20; obj.xm0];
-            obj.kappa_s = obj.h_s/(obj.cp_s*obj.rho_s*obj.phi_s*obj.t_s);
-            obj.kappa_CO2 = obj.h_CO2/(obj.cp_CO2*obj.rho_CO2*obj.t_CO2);
-            obj.kappa_ms = obj.h_s/(obj.cp_m*obj.rho_m*obj.t_m);
-            obj.kappa_mCO2 = obj.h_CO2/(obj.cp_m*obj.rho_m*obj.t_m);
+            obj.x0 = obj.Ts0*ones(obj.n, 1);
             obj.delta = obj.H/(obj.n-2);
             obj.pos = linspace(0, obj.H, obj.n);
-
+            obj.Ac = pi/4*obj.D^2;
+            obj.Vbin = obj.Ac*obj.H;
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -135,8 +90,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
-                Tm, Q_CO2, x_] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
+        function [Ts_out, mdot_s_out, Ts, x_] = ...
+                stepImpl(obj, Ts_in, mdot_s_in, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
@@ -144,15 +99,11 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
                         
             % compute variables dependent on inputs
             mdot_s_out = mdot_s_in;
-            mdot_CO2_out = mdot_CO2_in;
-            obj.v_s = mdot_s_in/ ...
-                      (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);     
-            obj.v_CO2 = mdot_CO2_in/ ...
-                      (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
+            obj.v_s = mdot_s_in/(obj.rho_s*obj.phi_s*obj.Ac);     
                   
             % construct linear system matrices and iterate
             buildSystemMatrices(obj);
-            [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, obj.dt);
+            [Ts, Tco2,  = iterateTemps(obj, Ts_in, Tco2_in, obj.dt);
             
             % calculate remaining outputs
             Ts_out = Ts(end);
