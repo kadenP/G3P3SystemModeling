@@ -6,9 +6,9 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
         n = 100                     % number of discretizations in domain
         D = 1                       % (m) duct inside diameter
         L = 1                       % (m) duct length
-        td = 0.003                  % (m) duct thickness
+        td = 0.05                   % (m) duct thickness
         Ts0 = 25                    % (°C) initial temperature of particles
-        Tm0 = 25                    % (°C) initial temperature of metal
+        Ts0 = 25                    % (°C) initial temperature of particles
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density       
         phi_s = 0.6                 % solid volume fraction
@@ -22,7 +22,7 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
     properties (Access = protected)  
         tNow                        % (s) current time
         dt                          % (s) current time step
-        v_s                         % (m/s) bulk solids velocity        
+        vs                          % (m/s) bulk solids velocity        
         Acs                         % (m2) open cross-sectional area
         Acm                         % (m2) duct cross-sectional area 
         P1                          % (m) duct inside perimeter
@@ -102,18 +102,16 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
         function setupImpl(obj)
             % Perform one-time calculations, such as computing constants 
             obj.tNow = 0;
-            obj.xs0 = obj.Ts0*ones(obj.n, 1);
-            obj.xm0 = obj.Tm0*ones(obj.n, 1);
-            obj.x0 = [obj.xs0; obj.xm0];
-            obj.delta = obj.L/(obj.n-2);
-            obj.pos = linspace(0, obj.L, obj.n);
+            obj.x0 = obj.Ts0*ones(obj.n, 1);
+            obj.delta = obj.H/(obj.n-2);
+            obj.pos = linspace(0, obj.H, obj.n);
             obj.Acs = pi/4*obj.D^2;
             obj.Acm = pi/4*((obj.D + obj.td)^2 - obj.D^2);
             obj.P1 = pi*obj.D;
             obj.P2 = pi*(obj.D + obj.td);
-            obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
-            obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
-            obj.Mminf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);
+            obj.Ms = obj.hsm*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
+            obj.Msm = obj.hsm*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
+            obj.Msinf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -127,7 +125,7 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
             % discrete states.
             obj.dt = t - obj.tNow;
             x_ = obj.pos;
-            obj.v_s = mdot_s_in/(obj.phi_s*obj.rho_s*obj.Acs);
+            obj.vs = mdot_s_in/(obj.phi_s*obj.rho_s*obj.Acs);
                         
             % compute variables dependent on inputs
             mdot_s_out = mdot_s_in;    

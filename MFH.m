@@ -159,198 +159,28 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
             % time step
             % particle temperature equations
             Omega1 = obj.v_s/obj.delta;
-            Omega2 = -(obj.v_s/obj.delta + 2*obj.kappa_s);
-            Omega3 = 2*obj.kappa_s;
-            obj.As = spdiags([Omega1*ones(obj.n, 1), ...
-                Omega2*ones(obj.n, 1), Omega3*ones(obj.n, 1)], [-1, 0, 2*obj.n], obj.n, 3*obj.n); 
-            obj.Bs = zeros(3*obj.n, 1); obj.Bs(1) = Omega1;
-            % sCO2 temperature equations
-            Phi1 = -(obj.v_CO2/obj.delta + 2*obj.kappa_CO2);
-            Phi2 = obj.v_CO2/obj.delta;
-            Phi3 = 2*obj.kappa_CO2;
-            obj.Aco2 = spdiags([Phi1*ones(obj.n, 1), ...
-                Phi2*ones(obj.n, 1), Phi3*ones(obj.n, 1)], [obj.n, obj.n+1, 2*obj.n], obj.n, 3*obj.n);
-            obj.Aco2(obj.n, 2*obj.n+1) = 0; % hold for sCO2 inlet temp
-            obj.Bco2 = zeros(3*obj.n, 1); obj.Bco2(2*obj.n) = Phi2;            
-            % metal temperature equations
-            Lambda1 = obj.kappa_ms;
-            Lambda2 = obj.kappa_mCO2;
-            Lambda3 = -(obj.kappa_ms + obj.kappa_mCO2);
-            obj.Am = spdiags([Lambda1*ones(obj.n, 1), ...
-                Lambda2*ones(obj.n, 1), Lambda3*ones(obj.n, 1)], [0, obj.n, 2*obj.n], obj.n, 3*obj.n);
-            % full state and input matrices
-            obj.A = [obj.As; obj.Aco2; obj.Am];
-            obj.B = [obj.Bs, obj.Bco2];            
+            Omega2 = -obj.v_s/obj.delta;
+            obj.A = spdiags([Omega1*ones(obj.n, 1), ...
+                Omega2*ones(obj.n, 1)], [-1, 0], obj.n, obj.n); 
+            obj.B = zeros(obj.n, 1); obj.B(1) = Omega1;                      
         end
-        function [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, t)
+        function Ts = iterateTemps(obj, Ts_in, t)
             % uses the developed semi-discrete heat exchanger model to
             % compute new temperatures for the particles, sCO2, and metal
             % throughout the heat exchanger.
             % first reformulate as linear system with constant input
-            u_ = [Ts_in; Tco2_in];
+            u_ = Ts_in;
             b_ = obj.B*u_;
-            Ap = [obj.A, eye(3*obj.n); zeros(3*obj.n), zeros(3*obj.n)];
+            Ap = [obj.A, eye(obj.n); zeros(obj.n), zeros(obj.n)];
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
             % deconstruct to obtain desired solution
-            obj.x = xx(1:3*obj.n);
-            obj.xs = obj.x(1:obj.n);
-            obj.xCO2 = obj.x(obj.n+1:2*obj.n);
-            obj.xm = obj.x(2*obj.n+1:3*obj.n);
+            obj.x = xx(1:obj.n);
             % reset initial conditions
-            obj.x0 = obj.x;
-            obj.xs0 = obj.xs;
-            obj.xCO20 = obj.xCO2;
-            obj.xm0 = obj.xm;  
+            obj.x0 = obj.x; 
             % assign solution to physical parameters
-            Ts = obj.xs;
-            Tco2 = obj.xCO2;
-            Tm = obj.xm;            
+            Ts = obj.x;          
         end
         
-        
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % top boundary temperature distribution for discharge mode
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function thetaT_ = iterateThetaT(obj, thetaS_, r_, topIC, zhat_, rtop_, zcenter_)
-            % iterates the temperature for discretized energy equation
-            n = length(zhat_); m = length(rtop_);
-            % compute velocity distribution if not populated already
-            ubar_ = computeUbar(obj, rtop_);
-            % compute matrix exponential if empty
-            [GT_, expTop_, LambdaT2_] = computeExpTop(obj, ubar_, zhat_, rtop_);
-            % boundary condition at z=0 
-            topIC(end, :) = obj.S2T(thetaS_, r_, rtop_);            
-            % boundary condition at r = b
-            topIC(:, end) = thetaS_(end, end);
-            % set initial condition           
-            topIC = topIC';
-            topIC = GT_*topIC(:) + LambdaT2_*obj.thetaA;
-            % calculate new temperature states with matrix exponential                    
-            thetaT_ = expTop_*topIC(:);
-            % set new temperatures for top region
-            thetaT_ = reshape(thetaT_, m, n)';
-            % fix corner temperatures
-            thetaT_(1, 1) = thetaT_(1, 2);
-            thetaT_(end, 1) = thetaT_(end, 2);
-            thetaT_(1, end) = thetaT_(2, end);
-            thetaT_(end, end) = thetaT_(end-1, end);            
-            % compute upper boundary temperature for center channel
-            computeThetaChat(obj, thetaT_, ubar_, zcenter_);
-        end      
-        function [GT_, expTop_, LambdaT2_] = computeExpTop(obj, ubar_, zhat_, rtop_)
-            % computes the static top exponential
-            n = length(zhat_); m = length(rtop_); nm = n*m;
-            obj.drtop = rtop_(2) - rtop_(1);
-            obj.dzhat = zhat_(2) - zhat_(1);
-            % top boundary meshed domain state matrix elements 
-            OmegaT1_ = -2/obj.drtop^2 - 2/obj.dzhat^2;
-            Ls = diag(ones(length(obj.ubar)-1, 1), -1);
-            OmegaT2_ = 1/obj.drtop^2 + (1./repmat(rtop_', n, 1) ... 
-                   - obj.Pe*repmat(Ls*ubar_', n, 1))/(2*obj.drtop);
-            OmegaT3_ = 1/obj.dzhat^2;
-            Us = diag(ones(length(ubar_)-1, 1), 1);
-            OmegaT4_ = 1/obj.drtop^2 - (1./repmat(rtop_', n, 1) ... 
-                   - obj.Pe*repmat(Us*ubar_', n, 1))/(2*obj.drtop);
-            OmegaT5_ = 1/obj.dzhat^2;
-            AT_ = spdiags([OmegaT1_*ones(nm, 1), OmegaT2_, ...
-                        OmegaT3_*ones(nm, 1), OmegaT4_, ...
-                        OmegaT5_*ones(nm, 1)], [0, 1, m, -1, -m], ...
-                        nm, nm);                                         
-            % eliminate boundary elements from AT
-            AT_(1:m, :) = 0;                 % z = h
-            AT_(end-m+1:end, :) = 0;         % z = 0
-            AT_(m:m:end, :) = 0;             % r = b
-            AT_(1:m:end-m+1, :) = 0;         % r = a
-            % Boundary state matrix
-            GT_ = eye(nm);
-            % boundary condition at z=h
-            AT_(1:m, :) = AT_(m+1:2*m, :)*1/(1 + obj.Bi5*obj.dzhat); 
-            LambdaT2_ = [obj.Bi5*obj.dzhat/(1 + obj.Bi5*obj.dzhat) ...
-                              *ones(m-1, 1); zeros(nm-m+1, 1)];
-            GT_((m-1)*nm:nm+1:2*m*nm) = 1/(1 + obj.Bi5*obj.dzhat);
-            GT_(1:nm+1:m*(nm+1)) = 0;
-            % boundary condition at r = a
-            AT_(1:m:end-m+1, :) = AT_(2:m:end-m+2, :);
-            % matrix exponential for single time step
-            expTop_ = expm(AT_*obj.df);
-        end
-        function computeThetaChat(obj, thetaT_, ubar_, zcenter_)
-            % computes the homogeneous temperature for the top boundary in
-            % the center channel based on an energy balance on the junction
-            % that connects the top and center boundaries
-            wbar_ = computeWbar(obj, zcenter_);
-            fz = simpsonIntegrator(obj, obj.zhat);
-            obj.thetaChat = 2/obj.a0*ubar_(1)/wbar_(1)*fz*thetaT_(:, 1);           
-        end
-        function recordTopLoss(obj)
-            % records dT from outer radius to inner radius in the top
-            % channel at the current time step
-            if isempty(obj.topLoss); obj.topLoss = cell(3, 1); end
-            obj.topLoss{1} = [obj.topLoss{1}, obj.FoNow];
-            obj.topLoss{2} = [obj.topLoss{2}, ...
-                                  obj.thetaT(:, 2) - obj.thetaT(:, end-1)];
-            obj.topLoss{3} = [obj.topLoss{3}, ...
-                              obj.theta2T(obj.thetaT(:, 2)) ...
-                            - obj.theta2T(obj.thetaT(:, end-1))];
-        end
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % center channel velocity distribution for discharge mode
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        
-        function wbar_ = computeWbar(obj, zcenter_)
-            % compute bulk velocity distribution in center channel
-            wbar_ = obj.Qc/(pi*(obj.a0)^2)*ones(size(zcenter_));             
-        end        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % center boundary temperature distribution for discharge mode
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function thetaC_ = iterateThetaC(obj, thetaS_, z_, centerIC, zcenter_, rhat_)
-            % iterates the temperature for discretized energy equation
-            n = length(zcenter_); m = length(rhat_); nm = n*m; 
-            obj.dzc = zcenter_(2) - zcenter_(1);
-            obj.drhat = rhat_(2) - rhat_(1);
-            % compute velocity distribution if not populated already
-            wbar_ = computeWbar(obj, zcenter_);
-            % top boundary meshed domain state matrix elements 
-            OmegaC1_ = -2/obj.dzc^2 - 2/obj.drhat^2;
-            OmegaC2_ = 1/obj.drhat^2 ...
-                        + 1/(2*repmat(rhat_', n, 1)*obj.drhat);
-            OmegaC3_ = 1/obj.dzc^2 + 0.1*obj.Pe ...
-                   *repmat(wbar_', m, 1)/(2*obj.dzc);
-            OmegaC4_ = 1/obj.drhat^2 ...
-                        - 1/(2*repmat(rhat_', n, 1)*obj.drhat);
-            OmegaC5_ = 1/obj.dzc^2 - 0.1*obj.Pe ...
-                   *repmat(wbar_', m, 1)/(2*obj.dzc);
-            AC_ = spdiags([OmegaC1_*ones(nm, 1), OmegaC2_', ...
-                              OmegaC3_, OmegaC4_', OmegaC5_], ...
-                              [0, 1, m, -1, -m], nm, nm);
-            % eliminate boundary elements from AC
-            AC_(1:m, :) = 0;                 % z = 1
-            AC_(end-m+1:end, :) = 0;         % z = 0
-            AC_(m:m:end, :) = 0;             % r = a
-            AC_(1:m:end-m+1, :) = 0;         % r = 0            
-            % set boundary temperatures
-            [thetaC_, AC_] = setCenterChannelBoundaries(obj, AC_, thetaS_, z_, centerIC, zcenter_, rhat_);
-            % compute new temperature states with matrix exponential
-            thetaC_ = thetaC_';
-            thetaC_ = expm(AC_*obj.df)*thetaC_(:); 
-            % set new temperatures for top region
-            thetaC_ = reshape(thetaC_, m, n)';
-        end           
-        function [thetaC_, AC_] = setCenterChannelBoundaries(obj, AC_, thetaS_, z_, thetaC_, zcenter_, rhat_)
-            % sets center boundary conditions
-            m = length(rhat_);
-            % boundary condition at r = 0  
-            AC_(1:m:end-m+1, :) = AC_(2:m:end-m+2, :);
-            thetaC_(:, 1) = thetaC_(:, 2);
-            % boundary condition at z=0
-            AC_(end-m+1:end, :) = AC_(end-2*m+1:end-m, :);
-            thetaC_(end, 2:end) = thetaC_(end-1, 2:end);
-            % boundary condition at r = a
-            thetaC_(:, end) = obj.S2C(thetaS_, z_, zcenter_); 
-            % boundary condition at z=1
-            thetaC_(1, :) = obj.thetaChat;
-        end                      
     end
 end

@@ -1,31 +1,51 @@
-classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
-    % This MATLAB system block simulates transient behavior of the mass flow hopper that is used to regulate the flow of particles through a particular component. 
+classdef BE < matlab.System & matlab.system.mixin.CustomIcon
+    % This MATLAB system block simulates the heat loss as particles fall through a certain length of ducting. 
 
     % Public, nontunable properties
     properties (Nontunable)       
-        n = 20                      % number of discretizations in domain
-        H = 1.5                     % (m) hopper height
-        D = 0.6                     % (m) hopper diameter     
+        n = 100                     % number of discretizations in domain
+        D = 1                       % (m) duct inside diameter
+        L = 1                       % (m) duct length
+        td = 0.05                   % (m) duct thickness
         Ts0 = 25                    % (°C) initial temperature of particles
+        Tm0 = 25                    % (°C) initial temperature of metal
         cp_s = 1250                 % (J/kgK) particle specific heat
-        rho_s = 3500                % (kg/m3) particle density
-        phi_s = 0.6                 % solid volume fraction                                    
+        rho_s = 3500                % (kg/m3) particle density       
+        phi_s = 0.6                 % solid volume fraction
+        cp_m = 500                  % (J/kgK) metal specific heat
+        rho_m = 8000                % (kg/m3) metal density 
+        hinf = 10                   % (W/m2K) ambient convection coefficient    
+        hsw = 100                   % (W/m2K) solid-to-wall convection coefficient
     end
 
     % properties that shouldn't be set by user
     properties (Access = protected)  
         tNow                        % (s) current time
         dt                          % (s) current time step
-        Ac                          % (m2) cross-sectional area of hopper
-        Vbin                        % (m3) volume of hopper
-        v_s                         % (m/s) solid velocity       
+        v_s                         % (m/s) bulk solids velocity        
+        Acs                         % (m2) open cross-sectional area
+        Acm                         % (m2) duct cross-sectional area 
+        P1                          % (m) duct inside perimeter
+        P2                          % (m) duct outside perimeter
         pos                         % (m) position vector
         delta                       % (m) mesh size
         x                           % (°C) temperature states
-        x0                          % (°C) initial condition        
+        x0                          % (°C) initial condition 
+        xs                          % (°C) particle temperature states
+        xs0                         % (°C) IC for particle states
+        xm                          % (°C) metal temperature states
+        xm0                         % (°C) IC for metal states
         Ts_in                       % (°C) particle inlet temperature
-        A                           % (1/s) nxn state matrix
-        B                           % (1/s) nx1 input matrix       
+        A                           % (1/s) 2nx2n state matrix
+        B                           % (1/s) 2nx2 input matrix
+        As                          % (1/s) nx2n state matrix
+        Bs                          % (1/s) 2nx1 input matrix 
+        Am                          % (1/s) nx2n state matrix
+        Bm                          % (1/s) 2nx1 input matrix 
+        Ms                          % (1/s) solid kinematic coefficient
+        Msm                         % (1/s) solid-metal kinematic coefficient
+        Mminf                       % (1/s) metal-ambient kinematic coefficient
+        
     end
 
     % Pre-computed constants
@@ -50,24 +70,28 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name, in3name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name, in4name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'mdot_s_in';
-          in3name = 't';
+          in3name = 'Tinf';
+          in4name = 't';
         end
-        function [out1name, out2name, out3name, out4name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name, out4name, out5name] = ...
+                getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'mdot_s_out';
           out3name = 'Ts';
-          out4name = 'x';
+          out4name = 'Tm';
+          out5name = 'x';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
               'Title', 'Geometry Parameters', ...
-              'PropertyList', {'n', 'H', 'D'});          
+              'PropertyList', {'n', 'D', 'L', 'td'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
-              'PropertyList', {'Ts0', 'cp_s', 'rho_s', 'phi_s'});                            
+              'PropertyList', {'Ts0', 'Tm0', 'cp_s', 'rho_s', 'phi_s', 'cp_m', ...
+                               'rho_m', 'hinf', 'hsw'});                            
           groups = [group1, group2];    
        end
        
@@ -78,11 +102,18 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
         function setupImpl(obj)
             % Perform one-time calculations, such as computing constants 
             obj.tNow = 0;
-            obj.x0 = obj.Ts0*ones(obj.n, 1);
-            obj.delta = obj.H/(obj.n-2);
-            obj.pos = linspace(0, obj.H, obj.n);
-            obj.Ac = pi/4*obj.D^2;
-            obj.Vbin = obj.Ac*obj.H;
+            obj.xs0 = obj.Ts0*ones(obj.n, 1);
+            obj.xm0 = obj.Tm0*ones(obj.n, 1);
+            obj.x0 = [obj.xs0; obj.xm0];
+            obj.delta = obj.L/(obj.n-2);
+            obj.pos = linspace(0, obj.L, obj.n);
+            obj.Acs = pi/4*obj.D^2;
+            obj.Acm = pi/4*((obj.D + obj.td)^2 - obj.D^2);
+            obj.P1 = pi*obj.D;
+            obj.P2 = pi*(obj.D + obj.td);
+            obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
+            obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
+            obj.Mminf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -90,25 +121,23 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_s_out, Ts, x_] = ...
-                stepImpl(obj, Ts_in, mdot_s_in, t)
+        function [Ts_out, mdot_s_out, Ts, Tm, x_] = ...
+                stepImpl(obj, Ts_in, mdot_s_in, Tinf, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
             x_ = obj.pos;
+            obj.v_s = mdot_s_in/(obj.phi_s*obj.rho_s*obj.Acs);
                         
             % compute variables dependent on inputs
-            mdot_s_out = mdot_s_in;
-            obj.v_s = mdot_s_in/(obj.rho_s*obj.phi_s*obj.Ac);     
+            mdot_s_out = mdot_s_in;    
                   
             % construct linear system matrices and iterate
             buildSystemMatrices(obj);
-            [Ts, Tco2,  = iterateTemps(obj, Ts_in, Tco2_in, obj.dt);
+            [Ts, Tm] = iterateTemps(obj, Ts_in, Tinf, obj.dt);
             
             % calculate remaining outputs
             Ts_out = Ts(end);
-            Tco2_out = Tco2(1);
-            Q_CO2 = obj.cp_CO2*mdot_CO2_in*(Tco2_out - Tco2_in);
                       
             % update time
             obj.tNow = obj.tNow + obj.dt;
@@ -161,52 +190,41 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
             % time step
             % particle temperature equations
             Omega1 = obj.v_s/obj.delta;
-            Omega2 = -(obj.v_s/obj.delta + 2*obj.kappa_s);
-            Omega3 = 2*obj.kappa_s;
+            Omega2 = -(obj.v_s/obj.delta + obj.Ms);
+            Omega3 = obj.Ms;
             obj.As = spdiags([Omega1*ones(obj.n, 1), ...
-                Omega2*ones(obj.n, 1), Omega3*ones(obj.n, 1)], [-1, 0, 2*obj.n], obj.n, 3*obj.n); 
-            obj.Bs = zeros(3*obj.n, 1); obj.Bs(1) = Omega1;
-            % sCO2 temperature equations
-            Phi1 = -(obj.v_CO2/obj.delta + 2*obj.kappa_CO2);
-            Phi2 = obj.v_CO2/obj.delta;
-            Phi3 = 2*obj.kappa_CO2;
-            obj.Aco2 = spdiags([Phi1*ones(obj.n, 1), ...
-                Phi2*ones(obj.n, 1), Phi3*ones(obj.n, 1)], [obj.n, obj.n+1, 2*obj.n], obj.n, 3*obj.n);
-            obj.Aco2(obj.n, 2*obj.n+1) = 0; % hold for sCO2 inlet temp
-            obj.Bco2 = zeros(3*obj.n, 1); obj.Bco2(2*obj.n) = Phi2;            
+                Omega2*ones(obj.n, 1), Omega3*ones(obj.n, 1)], [-1, 0, obj.n], obj.n, 2*obj.n); 
+            obj.Bs = zeros(2*obj.n, 1); obj.Bs(1) = Omega1;           
             % metal temperature equations
-            Lambda1 = obj.kappa_ms;
-            Lambda2 = obj.kappa_mCO2;
-            Lambda3 = -(obj.kappa_ms + obj.kappa_mCO2);
+            Lambda1 = obj.Msm;
+            Lambda2 = -(obj.Msm + obj.Mminf);
             obj.Am = spdiags([Lambda1*ones(obj.n, 1), ...
-                Lambda2*ones(obj.n, 1), Lambda3*ones(obj.n, 1)], [0, obj.n, 2*obj.n], obj.n, 3*obj.n);
+                Lambda2*ones(obj.n, 1)], [0, obj.n], obj.n, 2*obj.n);
+            obj.Bm = zeros(2*obj.n, 1); obj.Bm(obj.n+1:end) = obj.Mminf;
             % full state and input matrices
-            obj.A = [obj.As; obj.Aco2; obj.Am];
-            obj.B = [obj.Bs, obj.Bco2];            
+            obj.A = [obj.As; obj.Am];
+            obj.B = [obj.Bs, obj.Bm];            
         end
-        function [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, t)
+        function [Ts, Tm] = iterateTemps(obj, Ts_in, Tinf, t)
             % uses the developed semi-discrete heat exchanger model to
             % compute new temperatures for the particles, sCO2, and metal
             % throughout the heat exchanger.
             % first reformulate as linear system with constant input
-            u_ = [Ts_in; Tco2_in];
+            u_ = [Ts_in; Tinf];
             b_ = obj.B*u_;
-            Ap = [obj.A, eye(3*obj.n); zeros(3*obj.n), zeros(3*obj.n)];
+            Ap = [obj.A, eye(2*obj.n); zeros(2*obj.n), zeros(2*obj.n)];
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
             % deconstruct to obtain desired solution
-            obj.x = xx(1:3*obj.n);
+            obj.x = xx(1:2*obj.n);
             obj.xs = obj.x(1:obj.n);
-            obj.xCO2 = obj.x(obj.n+1:2*obj.n);
-            obj.xm = obj.x(2*obj.n+1:3*obj.n);
+            obj.xm = obj.x(obj.n+1:end);
             % reset initial conditions
             obj.x0 = obj.x;
             obj.xs0 = obj.xs;
-            obj.xCO20 = obj.xCO2;
             obj.xm0 = obj.xm;  
             % assign solution to physical parameters
             Ts = obj.xs;
-            Tco2 = obj.xCO2;
             Tm = obj.xm;            
         end
         

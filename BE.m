@@ -1,12 +1,13 @@
-classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
+classdef BE < matlab.System & matlab.system.mixin.CustomIcon
     % This MATLAB system block simulates the heat loss as particles fall through a certain length of ducting. 
 
     % Public, nontunable properties
     properties (Nontunable)       
         n = 100                     % number of discretizations in domain
-        D = 1                       % (m) duct inside diameter
-        L = 1                       % (m) duct length
-        td = 0.003                  % (m) duct thickness
+        W = 1                       % (m) elevator case width
+        L = 2                       % (m) elevator case length
+        H = 50                      % (m) elevator case height
+        tm = 0.006                  % (m) elevator case thickness
         Ts0 = 25                    % (°C) initial temperature of particles
         Tm0 = 25                    % (°C) initial temperature of metal
         cp_s = 1250                 % (J/kgK) particle specific heat
@@ -15,7 +16,7 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
         cp_m = 500                  % (J/kgK) metal specific heat
         rho_m = 8000                % (kg/m3) metal density 
         hinf = 10                   % (W/m2K) ambient convection coefficient    
-        hsw = 100                   % (W/m2K) solid-to-wall convection coefficient
+        hsw = 180                   % (W/m2K) solid-to-wall convection coefficient
     end
 
     % properties that shouldn't be set by user
@@ -24,9 +25,9 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
         dt                          % (s) current time step
         v_s                         % (m/s) bulk solids velocity        
         Acs                         % (m2) open cross-sectional area
-        Acm                         % (m2) duct cross-sectional area 
-        P1                          % (m) duct inside perimeter
-        P2                          % (m) duct outside perimeter
+        Acm                         % (m2) elevator metal cross-sectional area 
+        P1                          % (m) elevator inside perimeter
+        P2                          % (m) elevator outside perimeter
         pos                         % (m) position vector
         delta                       % (m) mesh size
         x                           % (°C) temperature states
@@ -87,7 +88,7 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
               'Title', 'Geometry Parameters', ...
-              'PropertyList', {'n', 'D', 'L', 'td'});          
+              'PropertyList', {'n', 'W', 'L', 'H', 'tm'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
               'PropertyList', {'Ts0', 'Tm0', 'cp_s', 'rho_s', 'phi_s', 'cp_m', ...
@@ -105,12 +106,12 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
             obj.xs0 = obj.Ts0*ones(obj.n, 1);
             obj.xm0 = obj.Tm0*ones(obj.n, 1);
             obj.x0 = [obj.xs0; obj.xm0];
-            obj.delta = obj.L/(obj.n-2);
-            obj.pos = linspace(0, obj.L, obj.n);
-            obj.Acs = pi/4*obj.D^2;
-            obj.Acm = pi/4*((obj.D + obj.td)^2 - obj.D^2);
-            obj.P1 = pi*obj.D;
-            obj.P2 = pi*(obj.D + obj.td);
+            obj.delta = obj.H/(obj.n-2);
+            obj.pos = linspace(0, obj.H, obj.n);
+            obj.Acs = obj.W*obj.L;
+            obj.Acm = (obj.W + obj.tm)*(obj.L + obj.tm) - obj.W*obj.L;
+            obj.P1 = 2*obj.W + 2*obj.L;
+            obj.P2 = 2*(obj.W + obj.tm) + 2*(obj.L + obj.tm);
             obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
             obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
             obj.Mminf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);
