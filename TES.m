@@ -110,12 +110,15 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         zhat = []               % z-coordinates for calculations in the top boundary       
         zbarH = []              % z-coordinates for 'H' and 'C' computationses
         nzIC = 1000             % number of z-nodes for full z coordinate storage
-        nrIC = 600              % number of r-nodes for full r coordinate storage
+        nrIC = 1000             % number of r-nodes for full r coordinate storage
         nrbar = 600             % number of r-nodes to use for stagnant region
         nrH = 600               % number of r-nodes to use for 'H' and 'C' computations       
-        nzbar = 1000            % number of z-nodes to use for stagnant region       
-        nzH = 1000              % number of z-nodes to use for 'H' and 'C' computations 
-        nzc = 100               % number of nodes to use for center flow channel
+        nzbar                   % number of z-nodes to use for stagnant region 
+        nzbar0 = 1000           % max number of z-nodes for stagnant region
+        nzH                     % number of z-nodes to use for 'H' and 'C' computations
+        nzH0 = 1000             % max number of z-nodes to use for 'H' and 'C' modes
+        nzc                     % number of nodes to use for center flow channel
+        nzc0 = 100              % max number of z-nodes for center channel
         nzhat = 25              % number of z-nodes to use for top flow channel
         nrhat = 50              % number of r-nodes for center channel
         nzbarW = 1000           % number of nodes used in zbarW
@@ -478,9 +481,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                         nodeGen(obj, [0, obj.b], obj.nrH);
             obj.rhat = 1e-6:obj.drhat:obj.a0;
             obj.r = [obj.rhat, obj.rbar(2:end)];
+            obj.nzbar = ceil(obj.nzbar0*obj.ztop);
             obj.zbar0 = nodeGen(obj, [0, obj.ztop], obj.nzbar);
             [obj.zbar, obj.dzbar] = ... 
                         nodeGen(obj, [0, obj.ztop], obj.nzbar);
+            obj.nzH = ceil(obj.nzH0*obj.ztop);
             [obj.zbarH, obj.dzH] = ... 
                         nodeGen(obj, [0, obj.ztop], obj.nzH);
             obj.zcenter = 0:obj.dzc:obj.ztop;
@@ -675,11 +680,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     % update spatial domain
                     obj.HNow = obj.HNow + obj.dHCh;
                     obj.ztop = obj.HNow/obj.H_;
-                    if mod(obj.iteration, obj.modZH) == 0
-                        obj.nzH = length(z_) + 1; 
-                    else
-                        obj.nzH = length(z_);
-                    end
+                    obj.nzH = ceil(obj.nzH0*obj.ztop);
                     [z_, obj.dzH] = nodeGen(obj, [0, obj.ztop], obj.nzH);
                     % update temperature domain
                     move = abs(size(theta_, 1) - length(z_));
@@ -695,7 +696,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                                 im = im - 3;
                                 zm = z_(im:end);
                             end
-                            thetaMC_ = mean(theta_(im:end, :));
+                            fz = simpsonIntegrator(obj, zm);
+                            thetaMC_ = 1/zm(end)*fz'*theta_(im:end, :);
                             theta_(im:end, :) = repmat(thetaMC_, length(zm), 1);
                         end
                     end 
@@ -704,8 +706,13 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                 
                 case 'D'
                     % run discharging simulation
-                    [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
-                        = matchDischargeIC(obj, IC_, z_, r_);
+                    if obj.FoModeNow ~= 'D' || obj.FoNow == 0
+                        [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
+                            = matchDischargeIC(obj, IC_, z_, r_);
+                    else
+                        [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
+                             = disectDischargeDomains(obj, IC_, z_, r_);                       
+                    end
                     % set discharge flow rate parameters
                     obj.Qp = mdot/obj.rhopPack;
                     obj.Q = obj.Qp*(obj.H_/obj.Hp)^3;
@@ -723,19 +730,10 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     % update spatial domain
                     obj.HNow = obj.HNow - obj.dH;
                     obj.ztop = obj.HNow/obj.H_;
-                    if mod(obj.iteration, obj.modZS) == 0
-                        obj.nzbar = length(zbar_) - 1; 
-                    else
-                        obj.nzbar = length(zbar_);
-                    end
-                    if mod(obj.iteration, obj.modZC) == 0
-                        nzc_ = length(zcenter_) - 1; 
-                    else
-                        nzc_ = length(zcenter_);
-                    end
+                    obj.nzbar = ceil(obj.nzbar0*obj.ztop);
+                    dzbar0 = obj.dzbar;
                     [zbar_, obj.dzbar] = nodeGen(obj, [0, obj.ztop], obj.nzbar);
-                    zcenter_ = linspace(0, obj.ztop, nzc_);
-                    obj.dzc = zcenter_(2);
+                    zcenter_ = 0:obj.dzc:obj.ztop;
                     % update temperature array
                     move = abs(size(thetaS_, 1) - length(zbar_));
                     movec = abs(size(thetaC_, 1) - length(zcenter_));
@@ -908,12 +906,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.h5H = obj.Bip5H*obj.k/obj.H_;
             obj.h5C = obj.Bip5C*obj.k/obj.H_;
             resetImpl(obj);
-        end
-        
-        
-        
-        
-        
+        end                
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % functions used to transfer between storage modes
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -947,9 +940,10 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                                 = matchDischargeIC(obj, IC, zIC, rIC)
             obj.ztop = obj.ztop - obj.h;
             obj.HNow = obj.ztop*obj.H_;
+            obj.nzbar = ceil(obj.nzbar0*obj.ztop);
             [zbar_, obj.dzbar] = ...
                             nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            zcenter_ = linspace(0, obj.ztop, obj.nzc);
+            zcenter_ = 0:obj.dzc:obj.ztop;
             [~, i] = min(abs(zbar_(end) - zIC));
             [~, j] = min(abs(obj.rbar(1) - rIC));
             % match dimensions for stagnant region            
@@ -964,6 +958,20 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             [R, Z] = meshgrid(rIC(j:end), zIC(i:end) - zIC(i));
             [Rq, Zq] = meshgrid(obj.rtop, obj.zhat);
             thetaT_ = interp2(R, Z, IC(i:end, j:end), Rq, Zq, 'makima');
+        end
+        function [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
+                             = disectDischargeDomains(obj, IC, zIC, rIC)
+            % extracts the temperature profiles and spatial domains for the
+            % stagnant region, top flow surface, and center flow channel
+            obj.nzbar = ceil(obj.nzbar0*obj.ztop);
+            [zbar_, obj.dzbar] = ...
+                            nodeGen(obj, [0, obj.ztop], obj.nzbar);
+            zcenter_ = 0:obj.dzc:obj.ztop;
+            [~, i] = min(abs(zbar_(end) - zIC));
+            [~, j] = min(abs(obj.rbar(1) - rIC));
+            thetaS_ = IC(1:i, j:end);
+            thetaC_ = IC(1:i, 1:j);
+            thetaT_ = IC(i:end, j:end);                                   
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % conduction temperature solution for holding and charging mode
