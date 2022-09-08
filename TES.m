@@ -60,7 +60,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         qfFD = 2500         % range for eta values to be computed
         niFD = 30           % number of beta values used in computation of Cnm
         miFD = 30           % number of eta values used in computation of Cnm
-        climH = 1e-6        % only fourier coefficients > clim are used
+        climH = 1e-7        % only fourier coefficients > clim are used
         pH = 4000           % total number of beta values computed
         pfH = 2500          % range for beta values to be computed
         qH = 2500           % total number of eta values computed
@@ -676,7 +676,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     Uinf_ = obj.Hp/obj.H_*Uinfp_;
                     obj.QCh = Uinf_*(pi*(obj.a0*obj.H_)^2);
                     obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
-%                     resetImpl(obj);
+                    resetImpl(obj);
                     obj.Bi5 = obj.Bi5C;
                     % compute charge temperature values for current time step
                     theta_ = computeThetaH(obj, obj.df, IC_, z_, r_);
@@ -711,7 +711,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     % run discharging simulation
                     if obj.FoModePrev ~= 'D' || obj.FoNow == 0
                         [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
-                            = matchDischargeIC(obj, IC_, z_, r_);
+                            = matchDischargeIC(obj, IC_, z_, r_);                        
                     else
                         [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
                              = disectDischargeDomains(obj, IC_, z_, r_);                       
@@ -776,7 +776,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             fz = simpsonIntegrator(obj, z_);
             fr = simpsonIntegrator(obj, r_);
             Ir = 2*(r_.*IC_)*fr';
-            Tbulk = obj.theta2T(Ir'*fz'./(max(r_)^2*max(z_)));
+            try
+                Tbulk = obj.theta2T(Ir'*fz'./(max(r_)^2*max(z_)));
+            catch
+                Tbulk = NaN;
+            end
             
             % calculate total stored energy in bin
             Estored = obj.rhoPack*pi*max(r_)^2*max(z_)*obj.cp*Tbulk;
@@ -925,6 +929,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
 %             obj.gW1 = obj.gW1*(1 - exp(-obj.FoNow/obj.tauW1));
         end
         function [theta_, z_, r_] = matchHoldIC(obj, IC, zIC, rIC)
+            obj.nzH = ceil(obj.nzH0*obj.ztop);
             [z_, obj.dzH] = nodeGen(obj, [0, obj.ztop], obj.nzH);
             [r_, obj.drH] =  nodeGen(obj, [0, obj.b], obj.nrH);
             [R, Z] = meshgrid(rIC, zIC);
@@ -932,6 +937,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             theta_ = interp2(R, Z, IC, Rq, Zq, 'spline');           
         end
         function [theta_, z_, r_] = matchChargeIC(obj, IC, zIC, rIC)
+            obj.nzH = ceil(obj.nzH0*obj.ztop);
             [z_, obj.dzH] = nodeGen(obj, [0, obj.ztop], obj.nzH);
             [r_, obj.drH] = nodeGen(obj, [0, obj.b], obj.nrH);
             [R, Z] = meshgrid(rIC, zIC);
@@ -1348,11 +1354,15 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % compute top and center boundary temperatures 
             g1_ = obj.Bi1*(yt - thetaI_);
             g3_ = obj.Bi3*(yc - thetaI_);
+            if obj.FoModePrev ~= 'D'
+                obj.g1 = 0*g1_;
+                obj.g3 = 0*g3_;
+            end
             if isempty(obj.g1)
-                obj.g1 = obj.Bi1*(ones(size(g1_)) - thetaI_); 
+                obj.g1 = 0*g1_; %obj.Bi1*(ones(size(g1_)) - thetaI_); 
             end
             if isempty(obj.g3)
-                obj.g3 = obj.Bi3*(ones(size(g3_)) - thetaI_); 
+                obj.g3 = 0*g3_; %obj.Bi3*(ones(size(g3_)) - thetaI_); 
             end
             for i = 1:length(beta_)
                 RD_ = Xm(obj, r_, eta_(i));
@@ -1363,7 +1373,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                 C3 = obj.a0*RC3_ ...
                     /(Nn(obj, beta_(i))*Nm(obj, eta_(i)));
                 IBC1_ = (obj.g1.*RD_.*r_)*fr';
-                IBC3_ = (obj.g3(1:n).*Xn(obj, z_, beta_(i)))*fz';
+                try
+                    IBC3_ = (obj.g3(1:n).*Xn(obj, z_, beta_(i)))*fz';
+                catch
+                    IBC3_ = 0;
+                end
                 IBC1 = (g1_.*RD_.*r_)*fr';
                 IBC3 = (g3_.*Xn(obj, z_, beta_(i)))*fz';
                 p1 = (IBC1 - IBC1_)/obj.df; q1 = IBC1_;
@@ -2523,9 +2537,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         function [x, dx] = nodeGen(~, xlim, n)
             % generates a set of n chebyshev nodes spaced between xlim(1)
             % and xlim(2)
-            r_ = (xlim(2) - xlim(1))/2; theta_ = linspace(pi, 0, n);
-            x = xlim(1) + r_*(1 + cos(theta_));
-            dx = (eye(n) - diag(ones(1, n-1), -1))*x'; dx = dx(2:end);
+%             r_ = (xlim(2) - xlim(1))/2; theta_ = linspace(pi, 0, n);
+%             x = xlim(1) + r_*(1 + cos(theta_));
+%             dx = (eye(n) - diag(ones(1, n-1), -1))*x'; dx = dx(2:end);
+              x = linspace(xlim(1), xlim(2), n);
+              dx = x(2) - x(1);
         end
         function D = diffR(~, n, m, dr_)
             % creates a differential operator for first derivative in r 
