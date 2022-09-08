@@ -17,9 +17,9 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         a0 = 0.044                   % inner nondimensional radius at outlet
         h = 0.0011                   % nondimensional height of top flow boundary        
         b = 0.3214                  % inner nondimensional radius
-        H_ = 0.05                   % (m) bin height used for numerical computation
+        H_ = 0.1                   % (m) bin height used for numerical computation
         
-        thetaA = 0.75                  % ambient temperature inside
+        thetaA = 0.5                  % ambient temperature inside
         T0 = 800                    % (°C) initial temperature of particles in bin
         Tinf = 20                   % (°C) ambient temperature
         Tref = 0                    % (°C) reference temperature 
@@ -44,7 +44,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         mup = 2.5*1.81e-5           % (kg/ms) viscosity of particles moving in air        
         
         g = 9.80665                 % (m/s2) gravitational acceleration                     
-        deltaM = 0.02               % nondimensional mixing depth for charging mode        
+        deltaM = 0.005               % nondimensional mixing depth for charging mode        
                                                   
         clim = 1e-7         % only fourier coefficients > clim are used
         p = 4000            % total number of beta values computed
@@ -109,14 +109,14 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         zbar0 = []              % initial z-coordinates for stagnant region
         zhat = []               % z-coordinates for calculations in the top boundary       
         zbarH = []              % z-coordinates for 'H' and 'C' computationses
-        nzIC = 1000             % number of z-nodes for full z coordinate storage
+        nzIC = 2000             % number of z-nodes for full z coordinate storage
         nrIC = 1000             % number of r-nodes for full r coordinate storage
         nrbar = 600             % number of r-nodes to use for stagnant region
         nrH = 600               % number of r-nodes to use for 'H' and 'C' computations       
         nzbar                   % number of z-nodes to use for stagnant region 
         nzbar0 = 1000           % max number of z-nodes for stagnant region
         nzH                     % number of z-nodes to use for 'H' and 'C' computations
-        nzH0 = 1000             % max number of z-nodes to use for 'H' and 'C' modes
+        nzH0 = 2000             % max number of z-nodes to use for 'H' and 'C' modes
         nzc                     % number of nodes to use for center flow channel
         nzc0 = 100              % max number of z-nodes for center channel
         nzhat = 25              % number of z-nodes to use for top flow channel
@@ -139,7 +139,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         Fo = []                 % non-dimensional time (Fourier number) vector
         FoEnd = 0               % nondimensional end time
         FoNow = 0              % current iteration non-dimensional time
-        FoModeNow = 'H'          % current cycle mode (H, D, C)
+        FoModePrev = 'H'          % current cycle mode (H, D, C)
         FoEmpty = 0            % non-dimensional time when tank is completely empty
         tEmpty = 0             % time when tank is completely empty
         beta = []               % stagnant radial temperature solution
@@ -624,6 +624,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     obj.ztop = 0.9;
                 end
                 [r_, obj.drH] = nodeGen(obj, [0, obj.b], obj.nrH);
+                obj.nzH = ceil(obj.nzH0*obj.ztop);
                 [z_, obj.dzH] = nodeGen(obj, [0, obj.ztop], obj.nzH);
                 nch = length(z_); mch = length(r_);
                 IC_ = ones(nch, mch);
@@ -638,25 +639,25 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                 r_ = obj.rIC(1:m);
             end          
             % set cycle mode
-            if mdot == 0, obj.FoModeNow = 'H'; end
-            if mdot > 0, obj.FoModeNow = 'C'; end
-            if mdot < 0, obj.FoModeNow = 'D'; end
+            if mdot == 0, FoMode = 'H'; end
+            if mdot > 0, FoMode = 'C'; end
+            if mdot < 0, FoMode = 'D'; end
             % set limits on filling and emptying
             if obj.ztop < 0.05
-                if obj.FoModeNow == 'D'
-                    obj.FoModeNow = 'H';
+                if FoMode == 'D'
+                    FoMode = 'H';
                 end                    
             end
             if obj.ztop > 0.95
-                if obj.FoModeNow == 'C'
-                    obj.FoModeNow = 'H';
+                if FoMode == 'C'
+                    FoMode = 'H';
                 end                    
             end
             % simulate cycle time step
-            switch obj.FoModeNow
+            switch FoMode
                 case 'H'
                     % run holding simulation
-                    if obj.FoModeNow ~= 'H'
+                    if obj.FoModePrev ~= 'H'
                         matchHoldIC(obj, IC_, z_, r_);
                     end
                     obj.Bi5 = obj.Bi5H;
@@ -666,14 +667,16 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     IC_ = theta_;                                               
                 case 'C'
                     % run charging simulation
-                    if obj.FoModeNow ~= 'C'
+                    if obj.FoModePrev ~= 'C'
                         [IC_, z_, r_] = matchChargeIC(obj, IC_, z_, r_);
                     end
                     % set charge flow rate parameters
                     obj.QChp = abs(mdot)/obj.rhopPack;
-                    obj.QCh = obj.QChp*(obj.H_/obj.Hp)^3;
+                    Uinfp_ = obj.QChp/(pi*(obj.a0*obj.Hp)^2);
+                    Uinf_ = obj.Hp/obj.H_*Uinfp_;
+                    obj.QCh = Uinf_*(pi*(obj.a0*obj.H_)^2);
                     obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
-                    resetImpl(obj);
+%                     resetImpl(obj);
                     obj.Bi5 = obj.Bi5C;
                     % compute charge temperature values for current time step
                     theta_ = computeThetaH(obj, obj.df, IC_, z_, r_);
@@ -686,27 +689,27 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     move = abs(size(theta_, 1) - length(z_));
                     if move > 0             
                         % update temperature 
-                        for n = 1:move
+%                         for n = 1:move
                             theta_ = [theta_; ...
-                                   obj.thetaCi*ones(1, length(theta_(1, :)))];
+                                   obj.thetaCi*ones(move, length(theta_(1, :)))];
                             % compute temperature distribution for mixing depth
-                            [~, im] = min(abs(z_ - (obj.ztop - obj.deltaM)));
-                            zm = z_(im:end);
-                            if length(zm) < 3
-                                im = im - 3;
-                                zm = z_(im:end);
-                            end
-                            fz = simpsonIntegrator(obj, zm);
-                            thetaMC_ = 1/zm(end)*fz'*theta_(im:end, :);
-                            theta_(im:end, :) = repmat(thetaMC_, length(zm), 1);
-                        end
+%                             [~, im] = min(abs(z_ - (obj.ztop - obj.deltaM)));
+%                             zm = z_(im:end);
+%                             if length(zm) < 3
+%                                 im = im - 3;
+%                                 zm = z_(im:end);
+%                             end
+%                             fz = simpsonIntegrator(obj, zm);
+%                             thetaMC_ = 1/(zm(end)-zm(1))*fz*theta_(im:end, :);
+%                             theta_(im:end, :) = repmat(thetaMC_, length(zm), 1);
+%                         end
                     end 
                     % update initial condition
                     IC_ = theta_;
                 
                 case 'D'
                     % run discharging simulation
-                    if obj.FoModeNow ~= 'D' || obj.FoNow == 0
+                    if obj.FoModePrev ~= 'D' || obj.FoNow == 0
                         [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
                             = matchDischargeIC(obj, IC_, z_, r_);
                     else
@@ -714,10 +717,9 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                              = disectDischargeDomains(obj, IC_, z_, r_);                       
                     end
                     % set discharge flow rate parameters
-                    obj.Qp = mdot/obj.rhopPack;
-                    obj.Q = obj.Qp*(obj.H_/obj.Hp)^3;
-                    obj.Uinf = obj.Q/(pi*(obj.a0*obj.H_)^2);
-                    resetImpl(obj);
+                    obj.Qp = abs(mdot)/obj.rhopPack;
+                    obj.Uinfp = obj.Qp/(pi*(obj.a0*obj.Hp)^2);
+                    matchSimilarityParams(obj);
                     obj.Bi5 = obj.Bi5D;
                     % compute temperature in top boundary
                     thetaT_ = iterateThetaT(obj, thetaS_, obj.rbar, thetaT_, obj.zhat, obj.rtop, zcenter_);
@@ -731,7 +733,6 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     obj.HNow = obj.HNow - obj.dH;
                     obj.ztop = obj.HNow/obj.H_;
                     obj.nzbar = ceil(obj.nzbar0*obj.ztop);
-                    dzbar0 = obj.dzbar;
                     [zbar_, obj.dzbar] = nodeGen(obj, [0, obj.ztop], obj.nzbar);
                     zcenter_ = 0:obj.dzc:obj.ztop;
                     % update temperature array
@@ -743,7 +744,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                             for i = 1:length(obj.zhat)-1
                                 thetaT_(i, :) = thetaT_(i+1, :);                    
                             end
-                            thetaT_(end, :) = obj.S2T(thetaS_, r_, obj.rtop);
+                            thetaT_(end, :) = obj.S2T(thetaS_, obj.rbar, obj.rtop);
                             thetaS_ = thetaS_(1:end-1, :); 
                         end
                     end
@@ -769,13 +770,13 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % calculate bulk outlet temperature
             [~, ri] = min(abs(obj.a0 - r_));
             fr = simpsonIntegrator(obj, r_(1:ri));
-            Tout = 2/r_(ri)^2*(IC_(1, 1:ri).*r_(1:ri))*fr';
+            Tout = obj.theta2T(2/r_(ri)^2*(IC_(1, 1:ri).*r_(1:ri))*fr');
             
             % calculate bulk volumetric temperature
             fz = simpsonIntegrator(obj, z_);
             fr = simpsonIntegrator(obj, r_);
             Ir = 2*(r_.*IC_)*fr';
-            Tbulk = Ir'*fz'./(max(r_)^2*max(z_));
+            Tbulk = obj.theta2T(Ir'*fz'./(max(r_)^2*max(z_)));
             
             % calculate total stored energy in bin
             Estored = obj.rhoPack*pi*max(r_)^2*max(z_)*obj.cp*Tbulk;
@@ -787,6 +788,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             y4 = obj.ztop;
             
             % update initial condition
+            obj.FoModePrev = FoMode;
             obj.FoNow = obj.FoNow + obj.df;
             obj.IC(:) = NaN; obj.rIC(:) = NaN; obj.zIC(:) = NaN;
             [n_, m_] = size(IC_);
@@ -868,12 +870,12 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % new insulation configuration
             obj.baseInsulation = cell(2, 5);
             obj.baseInsulation{1, 1} = 'particles';
-            obj.baseInsulation{1, 2} = [0, 0.01];
+            obj.baseInsulation{1, 2} = [0, 0.1];
             obj.baseInsulation{1, 3} = 0.4;          % W/mK
             obj.baseInsulation{1, 4} = 2000;          % kg/m3
             obj.baseInsulation{1, 5} = 1025.965;        % J/kgK
             obj.baseInsulation{2, 1} = 'fondag';
-            obj.baseInsulation{2, 2} = [0.01, 0.01+0.1905];
+            obj.baseInsulation{2, 2} = [0.1, 0.1+0.1905];
             obj.baseInsulation{2, 3} = 1.75;          % W/mK
             obj.baseInsulation{2, 4} = 2210;          % kg/m3
             obj.baseInsulation{2, 5} = 1046.7;        % J/kgK
@@ -881,6 +883,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         function matchSimilarityParams(obj)
             % matches parameters for scaled model simulation
             % Reynolds number for momentum scaling (finding optimal viscosity)
+            obj.Rep = obj.Hp*obj.Uinfp/obj.nup;
             obj.nu = obj.nup;
             obj.Uinf = obj.nu*obj.Rep/obj.H_;
 
@@ -894,7 +897,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
 
             % reset model flow rates
             obj.rhoPack = obj.k/(obj.alphaPacked*obj.cp);
-%             obj.Q = obj.Uinf*pi*(obj.a0*obj.H_)^2;
+            obj.Q = obj.Uinf*pi*(obj.a0*obj.H_)^2;
 %             obj.QCh = Qcharge/Qdischarge*obj.Q;
 
             % Biot numbers for boundary condition scaling
@@ -969,9 +972,16 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             zcenter_ = 0:obj.dzc:obj.ztop;
             [~, i] = min(abs(zbar_(end) - zIC));
             [~, j] = min(abs(obj.rbar(1) - rIC));
+            % stagnant region
             thetaS_ = IC(1:i, j:end);
-            thetaC_ = IC(1:i, 1:j);
-            thetaT_ = IC(i:end, j:end);                                   
+            % center flow channel
+            [R, Z] = meshgrid(obj.rhat, zIC(1:i));
+            [Rq, Zq] = meshgrid(obj.rhat, zcenter_);
+            thetaC_ = interp2(R, Z, IC(1:i, 1:j), Rq, Zq, 'makima');
+            % top flow channel
+            [R, Z] = meshgrid(rIC(j:end), zIC(i:end) - zIC(i));
+            [Rq, Zq] = meshgrid(obj.rtop, obj.zhat);
+            thetaT_ = interp2(R, Z, IC(i:end, j:end), Rq, Zq, 'makima');                                   
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % conduction temperature solution for holding and charging mode
@@ -1510,7 +1520,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function ubar_ = computeUbar(obj, rtop_)
             % computes velocity profile on top boundary
-            ubar_ = obj.Qc./(2*pi*rtop_*obj.h);
+            ubar_ = -obj.Qc./(2*pi*rtop_*obj.h);
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % top boundary temperature distribution for discharge mode
@@ -1548,7 +1558,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.dzhat = zhat_(2) - zhat_(1);
             % top boundary meshed domain state matrix elements 
             OmegaT1_ = -2/obj.drtop^2 - 2/obj.dzhat^2;
-            Ls = diag(ones(length(obj.ubar)-1, 1), -1);
+            Ls = diag(ones(length(ubar_)-1, 1), -1);
             OmegaT2_ = 1/obj.drtop^2 + (1./repmat(rtop_', n, 1) ... 
                    - obj.Pe*repmat(Ls*ubar_', n, 1))/(2*obj.drtop);
             OmegaT3_ = 1/obj.dzhat^2;
@@ -1602,7 +1612,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        
         function wbar_ = computeWbar(obj, zcenter_)
             % compute bulk velocity distribution in center channel
-            wbar_ = obj.Qc/(pi*(obj.a0)^2)*ones(size(zcenter_));             
+            wbar_ = -obj.Qc/(pi*(obj.a0)^2)*ones(size(zcenter_));             
         end        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % center boundary temperature distribution for discharge mode
@@ -1618,11 +1628,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             OmegaC1_ = -2/obj.dzc^2 - 2/obj.drhat^2;
             OmegaC2_ = 1/obj.drhat^2 ...
                         + 1/(2*repmat(rhat_', n, 1)*obj.drhat);
-            OmegaC3_ = 1/obj.dzc^2 + 0.1*obj.Pe ...
+            OmegaC3_ = 1/obj.dzc^2 + obj.Pe ...
                    *repmat(wbar_', m, 1)/(2*obj.dzc);
             OmegaC4_ = 1/obj.drhat^2 ...
                         - 1/(2*repmat(rhat_', n, 1)*obj.drhat);
-            OmegaC5_ = 1/obj.dzc^2 - 0.1*obj.Pe ...
+            OmegaC5_ = 1/obj.dzc^2 - obj.Pe ...
                    *repmat(wbar_', m, 1)/(2*obj.dzc);
             AC_ = spdiags([OmegaC1_*ones(nm, 1), OmegaC2_', ...
                               OmegaC3_, OmegaC4_', OmegaC5_], ...
