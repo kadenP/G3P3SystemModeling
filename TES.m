@@ -439,11 +439,12 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
           in2name = 'mdot';
           in3name = 't';
         end
-        function [out1name, out2name, out3name, out4name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name, out4name, out5name] = getOutputNamesImpl(~)
           out1name = 'Tout';
           out2name = 'Tbulk';
           out3name = 'Estored';
           out4name = 'ztop';
+          out5name = 'mdot_s_out';
         end             
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -610,7 +611,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.FoEmpty = obj.t2Fo(obj.tEmpty);
             obj.Fo = 0:obj.df:obj.FoEnd;
         end
-        function [y1, y2, y3, y4] = stepImpl(obj, Tin, mdot, t)
+        function [Ts_out, Ts_bulk, Estored, ztop_, mdot_s_out] = stepImpl(obj, Tin, mdot, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             % initialize temperature matrices
@@ -664,7 +665,9 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     % compute hold temperature values for current time step                                                                               
                     theta_ = computeThetaH(obj, obj.df, IC_, z_, r_);                
                     % update initial condition
-                    IC_ = theta_;                                               
+                    IC_ = theta_; 
+                    % set outlet mass flow rate output
+                    mdot_s_out = 0;
                 case 'C'
                     % run charging simulation
                     if obj.FoModePrev ~= 'C'
@@ -706,7 +709,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     end 
                     % update initial condition
                     IC_ = theta_;
-                
+                    % set outlet mass flow rate output
+                    mdot_s_out = 0;
                 case 'D'
                     % run discharging simulation
                     if obj.FoModePrev ~= 'D' || obj.FoNow == 0
@@ -758,7 +762,9 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     % update initial condition
                     IC_ = theta_; 
                     z_ = [zbar_, zbar_(end) + obj.zhat(2:end)];
-                    r_ = [obj.rhat(1:end-1), obj.rbar];                  
+                    r_ = [obj.rhat(1:end-1), obj.rbar];
+                    % set outlet mass flow rate output
+                    mdot_s_out = mdot;
             end          
                    
             % update wall and base systems
@@ -770,26 +776,19 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % calculate bulk outlet temperature
             [~, ri] = min(abs(obj.a0 - r_));
             fr = simpsonIntegrator(obj, r_(1:ri));
-            Tout = obj.theta2T(2/r_(ri)^2*(IC_(1, 1:ri).*r_(1:ri))*fr');
+            Ts_out = obj.theta2T(2/r_(ri)^2*(IC_(1, 1:ri).*r_(1:ri))*fr');
             
             % calculate bulk volumetric temperature
             fz = simpsonIntegrator(obj, z_);
             fr = simpsonIntegrator(obj, r_);
             Ir = 2*(r_.*IC_)*fr';
-            try
-                Tbulk = obj.theta2T(Ir'*fz'./(max(r_)^2*max(z_)));
-            catch
-                Tbulk = NaN;
-            end
+            Ts_bulk = obj.theta2T(Ir'*fz'./(max(r_)^2*max(z_)));
             
             % calculate total stored energy in bin
-            Estored = obj.rhoPack*pi*max(r_)^2*max(z_)*obj.cp*Tbulk;
+            Estored = obj.rhoPack*pi*max(r_)^2*max(z_)*obj.cp*Ts_bulk;
             
-            % set outputs
-            y1 = Tout;
-            y2 = Tbulk;
-            y3 = Estored;
-            y4 = obj.ztop;
+            % set remaining outputs
+            ztop_ = obj.ztop;
             
             % update initial condition
             obj.FoModePrev = FoMode;
@@ -874,12 +873,12 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % new insulation configuration
             obj.baseInsulation = cell(2, 5);
             obj.baseInsulation{1, 1} = 'particles';
-            obj.baseInsulation{1, 2} = [0, 0.1];
+            obj.baseInsulation{1, 2} = [0, 0.01];
             obj.baseInsulation{1, 3} = 0.4;          % W/mK
             obj.baseInsulation{1, 4} = 2000;          % kg/m3
             obj.baseInsulation{1, 5} = 1025.965;        % J/kgK
             obj.baseInsulation{2, 1} = 'fondag';
-            obj.baseInsulation{2, 2} = [0.1, 0.1+0.1905];
+            obj.baseInsulation{2, 2} = [0.01, 0.01+0.1905];
             obj.baseInsulation{2, 3} = 1.75;          % W/mK
             obj.baseInsulation{2, 4} = 2210;          % kg/m3
             obj.baseInsulation{2, 5} = 1046.7;        % J/kgK
@@ -1827,11 +1826,6 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.Abase = spdiags([-(obj.tauBase(:, 1) + obj.tauBase(:, 2)), ...
                         obj.tauBase(:, 1), obj.tauBase(:, 2)], ...
                         [0, 1, -1], N, N)';
-            obj.Bbase = zeros(N, 1); obj.Bbase(1) = obj.tauBase(1, 1);
-            obj.Cbase = [zeros(1, N); eye(N)]; 
-            obj.Cbase(1) = -(obj.T0 - obj.Tinf)/(obj.Rbase{1, 2}*pi*(obj.b*obj.Hp)^2);
-            obj.Dbase = zeros(N+1, 1);
-            obj.Dbase(1) = (obj.T0 - obj.Tinf)/(obj.Rbase{1, 2}*pi*(obj.b*obj.Hp)^2); 
             % initialize state variables and boundary condition
             if isempty(obj.thetaBase), obj.thetaBase = zeros(N, 1); end
         end
@@ -1864,16 +1858,6 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.Awall = spdiags([-(obj.tauWall(:, 1) + obj.tauWall(:, 2)), ...
                         obj.tauWall(:, 1), obj.tauWall(:, 2)], ...
                         [0, 1, -1], N, N)';
-            obj.Bwall = zeros(N, 1); obj.Bwall(1) = obj.tauWall(1, 1);
-            obj.Cwall = [zeros(1, N); eye(N)];  
-            for i = 1:N
-                obj.Cwall(i, i) = -(obj.T0 - obj.Tinf)/(obj.Rwall{i, 2}*2*pi*obj.wallInsulation{i, 2}(1)*obj.Hp);
-                if i ~= 1
-                    obj.Cwall(i, i-1) = (obj.T0 - obj.Tinf)/(obj.Rwall{i, 2}*2*pi*obj.wallInsulation{i, 2}(1)*obj.Hp);
-                end
-            end
-            obj.Dwall = zeros(2*N, 1);
-            obj.Dwall(1) = (obj.T0 - obj.Tinf)/(obj.Rwall{1, 2}*2*pi*obj.b*obj.Hp^2);
             % initialize state variables and boundary condition   
             if isempty(obj.thetaWall), obj.thetaWall = zeros(N, 1); end
         end
