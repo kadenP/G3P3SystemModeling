@@ -7,6 +7,8 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
         D = 0.6                     % (m) bin diameter 
         ms0 = 1                     % (kg) initial mass in bin
         Ts0 = 25                    % (°C) initial temperature of particles
+        ht = 10                     % (W/m2K) top surface heat transfer coefficient
+        hinf = 10                   % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction                                    
@@ -45,24 +47,23 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name, in3name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name, in4name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'mdot_s_in';
-          in3name = 't';
+          in3name = 'mdot_s_out';
+          in4name = 't';
         end
-        function [out1name, out2name, out3name, out4name] = getOutputNamesImpl(~)
+        function [out1name, out2name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
-          out2name = 'mdot_s_out';
-          out3name = 'Ts';
-          out4name = 'x';
-        end   
+          out2name = 'qloss';
+        end  
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
               'Title', 'Geometry Parameters', ...
-              'PropertyList', {'n', 'H', 'D'});          
+              'PropertyList', {'H', 'D'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
-              'PropertyList', {'Ts0', 'cp_s', 'rho_s', 'phi_s'});                            
+              'PropertyList', {'ms0', 'Ts0', 'ht', 'hinf', 'cp_s', 'rho_s', 'phi_s'});                            
           groups = [group1, group2];    
        end
        
@@ -72,12 +73,9 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
         %% Common functions
         function setupImpl(obj)
             % Perform one-time calculations, such as computing constants 
-            obj.tNow = 0;
-            obj.x0 = obj.Ts0*ones(obj.n, 1);
-            obj.delta = obj.H/(obj.n-2);
-            obj.pos = linspace(0, obj.H, obj.n);
-            obj.Ac = pi/4*obj.D^2;
-            obj.Vbin = obj.Ac*obj.H;
+            obj.tNow = 0;            
+            obj.As = pi*obj.D*obj.H;
+            obj.Vbin = pi/4*obj.D^2*obj.H;
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -85,23 +83,16 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_s_out, Ts, x_] = ...
-                stepImpl(obj, Ts_in, mdot_s_in, t)
+        function [Ts_out, qloss] = ...
+                stepImpl(obj, Ts_in, mdot_s_in, mdot_s_out, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
-            x_ = obj.pos;
-                        
-            % compute variables dependent on inputs
-            mdot_s_out = mdot_s_in;
-            obj.v_s = mdot_s_in/(obj.rho_s*obj.phi_s*obj.Ac);     
-                  
-            % construct linear system matrices and iterate
-            buildSystemMatrices(obj);
-            Ts = iterateTemps(obj, Ts_in, obj.dt);
             
-            % calculate remaining outputs
-            Ts_out = Ts(end);
+            % step model for new lumped outlet temperature based on inlet
+            % and outlet mass flow rates
+            
+            
                       
             % update time
             obj.tNow = obj.tNow + obj.dt;
@@ -148,34 +139,7 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
             flag = false;
         end        
         %% model functions
-        function buildSystemMatrices(obj)
-            % uses the current system parameters to construct the linear
-            % system matrices to compute the state variables for the next
-            % time step
-            % particle temperature equations
-            Omega1 = obj.v_s/obj.delta;
-            Omega2 = -obj.v_s/obj.delta;
-            obj.A = spdiags([Omega1*ones(obj.n, 1), ...
-                Omega2*ones(obj.n, 1)], [-1, 0], obj.n, obj.n); 
-            obj.B = zeros(obj.n, 1); obj.B(1) = Omega1;                      
-        end
-        function Ts = iterateTemps(obj, Ts_in, t)
-            % uses the developed semi-discrete heat exchanger model to
-            % compute new temperatures for the particles, sCO2, and metal
-            % throughout the heat exchanger.
-            % first reformulate as linear system with constant input
-            u_ = Ts_in;
-            b_ = obj.B*u_;
-            Ap = [obj.A, eye(obj.n); zeros(obj.n), zeros(obj.n)];
-            xx0 = [obj.x0; b_];               
-            xx = expm(t*Ap)*xx0;
-            % deconstruct to obtain desired solution
-            obj.x = xx(1:obj.n);
-            % reset initial conditions
-            obj.x0 = obj.x; 
-            % assign solution to physical parameters
-            Ts = obj.x;          
-        end
+
         
     end
 end
