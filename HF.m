@@ -4,8 +4,8 @@ classdef HF < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable) 
         n = 150                     % number of heliostats
-        H = 1.2                     % (m) height of heliostat
-        W = 1.2                     % (m) width of heliostat
+        H = 5                       % (m) height of heliostat
+        W = 5                       % (m) width of heliostat
         eta_op = 0.6                % opperational efficiency                         
     end
 

@@ -11,7 +11,7 @@
 
 clear, clc, close all
 
-%% Define all system components
+%% Define all system components (note that default model parameters are set to match the Modelica G3P3 model
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Heliostat Field
@@ -21,12 +21,19 @@ clear, clc, close all
 HF_ = HF();
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Mass Flow Hopper
+% Inputs: Ts_in, Tinf, mdot_s_in, Qsolar, t
+% Outputs: Ts_out, mdot_s_out
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+HX_MFH = MFH();
+Reciever_MFH = MFH();
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Falling Particle Reciever
 % Inputs: Ts_in, Tinf, mdot_s_in, Qsolar, t
 % Outputs: Ts_out, mdot_s_out
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 FPR_ = FPR();
-FPR_.Ts0 = 25;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Hot and Cold Storage Bins
@@ -37,6 +44,13 @@ hotTES = TES();
 hotTES.T0 = 800;
 coldTES = TES();
 coldTES.T0 = 800;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Intermediate Lumped Storage Bin
+% Inputs: Tin, Tinf, mdot_s_in, mdot_s_out, t
+% Outputs: Ts_out, qloss
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+intTES = LSB();
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Particle-to-sCO2 Heat Exchanger
@@ -60,35 +74,70 @@ BE_.n = 30;
 % Inputs: Ts_in, mdot_in
 % Outputs: Ts_out1, Ts_out2, mdot_out1, mdot_out2
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-SS1 = SS();
-SS2 = SS();
-SS3 = SS();
+HotBinDiverter = SS();
+RecieverDiverter = SS();
+IntermediateStorageDiverter = SS();
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Solid Junctions
 % Inputs: Ts_in1, Ts_in2, mdot_in1, mdot_in2
 % Outputs: Ts_out, mdot_out
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-SJ1 = SJ();
-SJ2 = SJ();
-SJ3 = SJ();
+HeatExchangerJunction = SJ();
+ColdBinJunction = SJ();
+BucketElevatorJunction = SJ();
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Free Fall Ducts
 % Inputs: Ts_in, mdot_s_in, Tinf, t
 % Outputs: Ts_out, mdot_s_out, Ts, Tm, x
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-FFD1 = FFD();
-FFD2 = FFD();
-FFD3 = FFD();
-FFD4 = FFD();
-FFD5 = FFD();
-FFD6 = FFD();
-FFD7 = FFD();
-FFD8 = FFD();
-FFD9 = FFD();
-FFD10 = FFD();
-FFD11 = FFD();
+RecieverDownComer = FFD();
+RecieverDownComer.L = 10;
+HotBinBypass = FFD();
+HotBinBypass.L = 10;
+RecieverBypass = FFD();
+RecieverBypass.L = 10;
+HeaterDischarge = FFD();
+HeaterDischarge.L = 10;
+HotBinInlet = FFD();
+HotBinInlet.L = 10;
+HotBinDischarge = FFD();
+HotBinDischarge.L = 10;
+IntStorageDownComer = FFD();
+IntStorageDownComer.L = 10;
+HeatExchangerDownComer = FFD();
+HeatExchangerDownComer.L = 10;
+ColdBinBypass = FFD();
+ColdBinBypass.L = 10;
+ColdBinDischarge = FFD();
+ColdBinDischarge.L = 10;
+BucketElevatorDownComer = FFD();
+BucketElevatorDownComer.L = 10;
+
+%% load TMY3 data
+weather = readtable('ABQ_Weather_Lookup.xlsx');
+
+% Winter Week (Dec 21 - Dec 28)
+% t_h_start = 8497;
+% t_h_end = 8665;
+
+
+% Spring Week (March 21 - March 28)
+% t_h_start = 2641;
+% t_h_end = 2809;
+
+
+% Summer Week (June 21 - June 28)
+% t_h_start = 4105;
+% t_h_end = 4273;
+
+
+% Fall Week (September 23 - September 30)
+% t_h_start = 6361;
+% t_h_end = 6529;
+
+
 
 %% Set simulation parameters
 

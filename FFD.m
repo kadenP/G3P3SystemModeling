@@ -4,7 +4,7 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable)       
         n = 100                     % number of discretizations in domain
-        D = 1                       % (m) duct inside diameter
+        D = 0.25                    % (m) duct inside diameter
         L = 1                       % (m) duct length
         td = 0.003                  % (m) duct thickness
         Ts0 = 25                    % (°C) initial temperature of particles

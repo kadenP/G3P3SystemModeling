@@ -4,8 +4,8 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable)       
         n = 20                      % number of discretizations in domain
-        H = 1.5                     % (m) hopper height
-        D = 0.6                     % (m) hopper diameter     
+        H = 1                       % (m) hopper height
+        D = 1.2                     % (m) hopper diameter     
         Ts0 = 25                    % (°C) initial temperature of particles
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
