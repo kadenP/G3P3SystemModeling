@@ -21,10 +21,6 @@ numCycles = 7;
 
 dt = 600;
 t = 0:dt:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
-nc = ceil(chargeDurration/dt);
-nh = ceil(holdDurration/dt);
-nd = ceil(dischargeDurration/dt);
-nCycle = nc + nh + nd;
 
 %% Define all system components (note that default model parameters are set to match the Modelica G3P3 model
 
@@ -69,9 +65,23 @@ Ts_out_FPR = zeros(length(t), 1);
 mdot_s_out_FPR = zeros(length(t), 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Electric Heater
+% Inputs: Ts_in, mdot_s_in, Qsolar, t
+% Outputs: Ts_out, mdot_s_out
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Heater = EH();
+
+Ts_in_Heater = zeros(length(t), 1);
+mdot_in_Heater = zeros(length(t), 1);
+Tset_Heater = zeros(length(t), 1);
+Ts_out_Heater = zeros(length(t), 1);
+mdot_out_Heater = zeros(length(t), 1);
+Qin_Heater = zeros(length(t), 1); 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Hot and Cold Storage Bins
 % Inputs: Tin, mdot, t
-% Outputs: Ts_out, T_bulk, Estored, ztop, mdot_s_out
+% Outputs: Ts_out, T_bulk, Estored, ztop, ms, mdot_s_out
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 hotTES = TES();
 hotTES.T0 = 800;
@@ -82,29 +92,34 @@ Ts_out_hotTES = zeros(length(t), 1);
 T_bulk_hotTES = zeros(length(t), 1);
 Estored_hotTES = zeros(length(t), 1);
 ztop_hotTES = zeros(length(t), 1);
-
-coldTES = TES();
-coldTES.T0 = 800;
-
-Ts_in_coldTES = zeros(length(t), 1);
-mdot_coldTES = zeros(length(t), 1);
-Ts_out_coldTES = zeros(length(t), 1);
-T_bulk_coldTES = zeros(length(t), 1);
-Estored_coldTES = zeros(length(t), 1);
-ztop_coldTES = zeros(length(t), 1);
+ms_hotTES = zeros(length(t), 1);
+mdot_s_out_hotTES = zeros(length(t), 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Intermediate Lumped Storage Bin
 % Inputs: Tin, Tinf, mdot_s_in, mdot_s_out, t
-% Outputs: Ts_out, qloss
+% Outputs: Ts_out, ms, qloss
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 intTES = LSB();
 
 Ts_in_intTES = zeros(length(t), 1);
-mdot_s_in = zeros(length(t), 1);
-mdot_s_out = zeros(length(t), 1);
+mdot_s_in_intTES = zeros(length(t), 1);
+mdot_s_out_intTES = zeros(length(t), 1);
 Ts_out_intTES = zeros(length(t), 1);
+ms_intTES = zeros(length(t), 1);
 qloss_intTES = zeros(length(t), 1);
+
+coldTES = LSB();
+coldTES.H = 7;
+coldTES.D = 4.5;
+
+Ts_in_coldTES = zeros(length(t), 1);
+mdot_s_in_coldTES = zeros(length(t), 1);
+mdot_s_out_coldTES = zeros(length(t), 1);
+Ts_out_coldTES = zeros(length(t), 1);
+ms_coldTES = zeros(length(t), 1);
+qloss_coldTES = zeros(length(t), 1);
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Particle-to-sCO2 Heat Exchanger
@@ -118,7 +133,7 @@ HX_.n = 30;
 Ts_in_HX = zeros(length(t), 1);
 Tco2_in_HX = zeros(length(t), 1);
 mdot_s_in_HX = zeros(length(t), 1);
-mdot_CO2_HX = zeros(length(t), 1);
+mdot_CO2_in_HX = zeros(length(t), 1);
 Ts_out_HX = zeros(length(t), 1);
 Tco2_out_HX = zeros(length(t), 1);
 mdot_s_out_HX = zeros(length(t), 1);
@@ -146,13 +161,14 @@ Tm_BE = cell(length(t), 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Solid Splitters
-% Inputs: Ts_in, mdot_in
+% Inputs: Ts_in, mdot_in, y1
 % Outputs: Ts_out1, Ts_out2, mdot_out1, mdot_out2
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 HotBinDiverter = SS();
 
 Ts_in_HotBinDiverter = zeros(length(t), 1);
 mdot_in_HotBinDiverter = zeros(length(t), 1);
+y1_HotBinDiverter = zeros(length(t), 1);
 Ts_out1_HotBinDiverter = zeros(length(t), 1);
 Ts_out2_HotBinDiverter = zeros(length(t), 1);
 mdot_out1_HotBinDiverter = zeros(length(t), 1);
@@ -162,6 +178,7 @@ RecieverDiverter = SS();
 
 Ts_in_RecieverDiverter = zeros(length(t), 1);
 mdot_in_RecieverDiverter = zeros(length(t), 1);
+y1_RecieverDiverter = zeros(length(t), 1);
 Ts_out1_RecieverDiverter = zeros(length(t), 1);
 Ts_out2_RecieverDiverter = zeros(length(t), 1);
 mdot_out1_RecieverDiverter = zeros(length(t), 1);
@@ -171,6 +188,7 @@ IntermediateStorageDiverter = SS();
 
 Ts_in_IntermediateStorageDiverter = zeros(length(t), 1);
 mdot_in_IntermediateStorageDiverter = zeros(length(t), 1);
+y1_IntermediateStorageDiverter = zeros(length(t), 1);
 Ts_out1_IntermediateStorageDiverter = zeros(length(t), 1);
 Ts_out2_IntermediateStorageDiverter = zeros(length(t), 1);
 mdot_out1_IntermediateStorageDiverter = zeros(length(t), 1);
@@ -336,24 +354,33 @@ x_BucketElevatorDownComer = cell(length(t), 1);
 
 %% System data table
 
+Ts_in_Heater = zeros(length(t), 1);
+mdot_in_Heater = zeros(length(t), 1);
+Tset_Heater = zeros(length(t), 1);
+Ts_out_Heater = zeros(length(t), 1);
+mdot_out_Heater = zeros(length(t), 1);
+Qin_Heater = zeros(length(t), 1);
+
 sysData = table(Qsolar, Ts_in_HX_MFH, Ts_out_HX_MFH, mdot_s_in_HX_MFH, ...
     mdot_s_out_HX_MFH, Ts_in_Reciever_MFH, Ts_out_Reciever_MFH, ...
     mdot_s_in_Reciever_MFH, mdot_s_out_Reciever_MFH, Ts_in_FPR, ...
-    mdot_s_in_FPR, Ts_out_FPR, mdot_s_out_FPR, Ts_in_hotTES, ...
-    mdot_hotTES, Ts_out_hotTES, T_bulk_hotTES, Estored_hotTES, ...
-    ztop_hotTES, Ts_in_coldTES, mdot_coldTES, Ts_out_coldTES, ...
-    T_bulk_coldTES, Estored_coldTES, ztop_coldTES, Ts_in_intTES, ...
-    mdot_s_in, mdot_s_out, Ts_out_intTES, qloss_intTES, Ts_in_HX, ...
-    Tco2_in_HX, mdot_s_in_HX, mdot_CO2_HX, Ts_out_HX, Tco2_out_HX, ...
+    mdot_s_in_FPR, Ts_out_FPR, mdot_s_out_FPR, Ts_in_Heater, ...
+    mdot_in_Heater, Tset_Heater, Ts_out_Heater, mdot_out_Heater, ...
+    Qin_Heater, Ts_in_hotTES, mdot_hotTES, Ts_out_hotTES, ...
+    T_bulk_hotTES, Estored_hotTES, ztop_hotTES, ms_hotTES,  ...
+    mdot_s_out_hotTES, Ts_in_coldTES, mdot_s_in_coldTES, mdot_s_out_coldTES, ...
+    Ts_out_coldTES, ms_coldTES, qloss_coldTES, Ts_in_intTES, ...
+    mdot_s_in_intTES, mdot_s_out_intTES, Ts_out_intTES, ms_intTES, qloss_intTES, Ts_in_HX, ...
+    Tco2_in_HX, mdot_s_in_HX, mdot_CO2_in_HX, Ts_out_HX, Tco2_out_HX, ...
     mdot_s_out_HX, mdot_CO2_out_HX, Ts_HX, Tco2_HX, Tm_HX, Q_CO2, ...
     x_HX, Ts_in_BE, mdot_s_in_BE, Ts_out_BE, mdot_s_out_BE, Ts_BE, ...
-    Tm_BE, Ts_in_HotBinDiverter, mdot_in_HotBinDiverter, ...
+    Tm_BE, Ts_in_HotBinDiverter, mdot_in_HotBinDiverter, y1_HotBinDiverter, ...
     Ts_out1_HotBinDiverter, Ts_out2_HotBinDiverter, ...
     mdot_out1_HotBinDiverter, mdot_out2_HotBinDiverter, ...
-    Ts_in_RecieverDiverter, mdot_in_RecieverDiverter, ...
+    Ts_in_RecieverDiverter, mdot_in_RecieverDiverter, y1_RecieverDiverter, ...
     Ts_out1_RecieverDiverter, Ts_out2_RecieverDiverter, ...
     mdot_out1_RecieverDiverter, mdot_out2_RecieverDiverter, ...
-    Ts_in_IntermediateStorageDiverter, mdot_in_IntermediateStorageDiverter, ...
+    Ts_in_IntermediateStorageDiverter, mdot_in_IntermediateStorageDiverter, y1_IntermediateStorageDiverter, ...
     Ts_out1_IntermediateStorageDiverter, Ts_out2_IntermediateStorageDiverter, ...
     mdot_out1_IntermediateStorageDiverter, mdot_out2_IntermediateStorageDiverter, ...
     Ts_in1_HeatExchangerJunction, Ts_in2_HeatExchangerJunction, ...
@@ -399,12 +426,12 @@ sysData = table(Qsolar, Ts_in_HX_MFH, Ts_out_HX_MFH, mdot_s_in_HX_MFH, ...
     x_BucketElevatorDownComer);
 
 
-%% load TMY3 data
+%% load TMY3 data and set simulation dates
 weather = readtable('ABQ_Weather_Lookup.xlsx');
 
 % Winter Week (Dec 21 - Dec 28)
-% t_h_start = 8497;
-% t_h_end = 8665;
+t_h_start = 8497; [~, ti_start] = min(abs(weather.time - t_h_start));
+t_h_end = 8665; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Spring Week (March 21 - March 28)
@@ -422,19 +449,75 @@ weather = readtable('ABQ_Weather_Lookup.xlsx');
 % t_h_end = 6529;
 
 
-%% Set simulation parameters
+%% Simulate over prescribed time frame
 
-Tin = 800; % + 20*sin(pi*t/3600);
+% additional simulation data
 
-y1 = zeros(size(t)); y1(1) = TES_.T0;
-y2 = zeros(size(t)); y2(1) = TES_.T0;
-y3 = zeros(size(t));
-y4 = zeros(size(t)); y4(1) = 0.1;
-profile on;
-for i = 2:length(t)
-    [y1(i), y2(i), y3(i), y4(i)] = step(TES_, Tin, mdot(i), t(i));
+hour_day = zeros(size(t));
+DNI = zeros(size(t));
+Tinf = zeros(size(t));
+HX_op = zeros(size(t));
+
+% start in charge mode
+[~, iStart] = min(abs(9*3600 - t));
+
+% initialize system parameters
+
+
+% profile on;
+for i = iStart:length(t)
+    
+    % load current weather conditions
+    hour_day(i) = mod(t(i)/3600, 24);
+    DNI(i) = interp1(weather.time, weather.DNI, t_h_start + t(i)/3600, 'makima');
+    Tinf(i) = interp1(weather.time, weather.Tinf, t_h_start + t(i)/3600, 'makima');
+    
+    % set particle-to-sCO2 inlet temperature and flow rate
+    sysData.Tco2_in(i) = 565;
+    sysData.mdot_CO2_in_HX(i) = 5;
+    sysData.mdot_CO2_out_HX(i) = sysData.mdot_CO2_in_HX(i);
+    
+    % reciever collection limit
+    if sysData.ms_coldTES(i-1) > 1000
+        sysData.Qsolar(i) = step(HF_, DNI(i));
+    else
+        sysData.Qsolar(i) = 0;
+    end
+    
+    % reciever diverter valve control
+%     if sysData.Ts_in_HotBinDiverter(i-1) > 765 && ...
+%         sysData.Ts_in_HotBinDiverter(i-1) < 800
+%         y1_HotBinDiverter(i) = 1;        
+%     else
+%         y1_HotBinDiverter(i) = 0;        
+%     end
+    
+    % intermediate storage diverter valve control
+    sysData.y1_intermediateStorageDiverter(i) = 1; % no flow to cold bin
+    
+    % hot storage bin and heat exchanger flow rate
+    if hour_day(i) >= 1 && hour_day(i) < 9
+        sysData.mdot_hotTES(i) = -5;
+        sysData.y1_HotBinDiverter(i) = 0;
+        sysData.mdot_s_out_Heater(i) = 0;
+    elseif hour_day(i) >= 9 && hour_day(i) < 15
+        sysData.mdot_hotTES(i) = 9;
+        sysData.y1_HotBinDiverter(i) = 1;
+        sysData.mdot_s_out_Heater(i) = 0.1;
+    else
+        sysData.mdot_hotTES(i) = 0;
+        sysData.y1_HotBinDiverter(i) = 0;
+        sysData.mdot_s_out_Heater(i) = 0.1;
+    end
+    
+    % add connections to fully define the system
+    sysData.mdot_s_in_HeaterDischarge(i) = sysData.mdot_s_out_Heater(i);
+    
+    
+        
+    
 end
-profsave;
+% profsave;
 
 
 

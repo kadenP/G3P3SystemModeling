@@ -27,7 +27,7 @@ classdef EH < matlab.System & matlab.system.mixin.CustomIcon
     methods(Static, Access = protected)
        %% system block input/output customization
        function icon = getIconImpl(~)
-          icon = sprintf('Solid\nSplitter'); 
+          icon = sprintf('Electric\nHeater'); 
        end
 %         function icon = getIconImpl(~)
 %             % Define icon for System block
@@ -36,11 +36,12 @@ classdef EH < matlab.System & matlab.system.mixin.CustomIcon
         function [in1name, in2name, in3name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'mdot_in';
-          in3name = 'Qin';
+          in3name = 'Tset';
         end
-        function [out1name, out2name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'mdot_out';
+          out3name = 'Qin';
         end   
        
     end
@@ -57,14 +58,15 @@ classdef EH < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_out] = ...
-                stepImpl(obj, Ts_in, mdot_in, Qin)
+        function [Ts_out, mdot_out, Qin] = ...
+                stepImpl(obj, Ts_in, mdot_in)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
                         
             % compute outlet flow rates           
             mdot_out = mdot_in;
-            Ts_out = Qin/(obj.cp_s*mdot_in) + Ts_in;
+            Ts_out = Tset;
+            Qin = obj.cp_s*mdot_in*(Ts_out - Ts_in);
         end       
         %% Backup/restore functions
         function s = saveObjectImpl(obj)

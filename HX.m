@@ -73,13 +73,13 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
     
     methods(Static, Access = protected)
        %% system block input/output customization
-%        function icon = getIconImpl(~)
-%           icon = sprintf('Particle\nTES\nBin'); 
-%        end
-        function icon = getIconImpl(~)
-            % Define icon for System block
-            icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
-        end
+       function icon = getIconImpl(~)
+          icon = sprintf('Particle-to-sCO2\nHeat Exchanger'); 
+       end
+%         function icon = getIconImpl(~)
+%             % Define icon for System block
+%             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
+%         end
         function [in1name, in2name, in3name, in4name, in5name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'Tco2_in';
@@ -88,7 +88,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           in5name = 't';
         end
         function [out1name, out2name, out3name, out4name, out5name, ...
-                  out6name, out7name, out8name] = getOutputNamesImpl(~)
+                  out6name, out7name, out8name, out9name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'Tco2_out';
           out3name = 'mdot_s_out';
@@ -97,6 +97,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           out6name = 'Tco2';
           out7name = 'Tm';
           out8name = 'Q_CO2';
+          out9name = 'x';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
