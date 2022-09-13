@@ -102,9 +102,27 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.mdot = mdot_s_in;
             obj.Tinf = Tinf;
             
-            % calculate current temperature of particles in apperature
+            % compute temperature at next step
             Ts_out = stepTempSolution(obj, Ts_in, Qsolar);
-                      
+            
+            % calculate mass flow rate required to obtain desired outlet
+            % temperature within error margin
+%             tol = 0.05; err = 1; i = 1;
+%             mdot_ = linspace(6, 10, 10);
+%             while abs(err) > tol
+%                 obj.mdot = mdot_(i);
+%                 Ts_ = stepTempSolution(obj, Ts_in, Qsolar);
+%                 errNew = (Ts_ - Tset)/Tset;
+%                 if sign(errNew) ~= sign(err)
+%                     break;
+%                 end
+%                 err = errNew;
+%                 i = i + 1;
+%             end            
+%             Ts_out = Ts_;
+%             mdot_s_in = obj.mdot;
+%             mdot_s_out = mdot_s_in;
+                                      
             % update time and initial condition
             obj.tNow = obj.tNow + obj.dt;
             obj.x0 = Ts_out;

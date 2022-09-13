@@ -611,7 +611,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.FoEmpty = obj.t2Fo(obj.tEmpty);
             obj.Fo = 0:obj.df:obj.FoEnd;
         end
-        function [Ts_out, Ts_bulk, Estored, ztop_, mdot_s_out] = stepImpl(obj, Tin, mdot, t)
+        function [Ts_out, Ts_bulk, Estored, ztop_, ms, mdot_s_out] = stepImpl(obj, Tin, mdot, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             % initialize temperature matrices
@@ -789,6 +789,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             
             % set remaining outputs
             ztop_ = obj.ztop;
+            ms = ztop_*pi*(obj.b*obj.Hp)^2*obj.rhopPack;
             
             % update initial condition
             obj.FoModePrev = FoMode;

@@ -3,7 +3,7 @@ classdef SS < matlab.System & matlab.system.mixin.CustomIcon
 
     % Public, nontunable properties
     properties (Nontunable) 
-        y1 = 0.5            % split fraction for outlet 1                 
+                         
     end
 
     % properties that shouldn't be set by user
@@ -33,9 +33,10 @@ classdef SS < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'mdot_in';
+          in3name = 'y1';
         end
         function [out1name, out2name, out3name, out4name] = getOutputNamesImpl(~)
           out1name = 'Ts_out1';
@@ -59,14 +60,14 @@ classdef SS < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out1, Ts_out2, mdot_out1, mdot_out2] = ...
-                stepImpl(obj, Ts_in, mdot_in)
+                stepImpl(obj, Ts_in, mdot_in, y1)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
                         
             % compute outlet flow rates
             Ts_out1 = Ts_in; Ts_out2 = Ts_in;
-            mdot_out1 = obj.y1*mdot_in;
-            mdot_out2 = (1 - obj.y1)*mdot_in;                                                                                                                                                
+            mdot_out1 = y1*mdot_in;
+            mdot_out2 = (1 - y1)*mdot_in;                                                                                                                                                
         end       
         %% Backup/restore functions
         function s = saveObjectImpl(obj)
