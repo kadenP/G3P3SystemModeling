@@ -17,15 +17,9 @@ clear, clc, close all
 chargeDurration = 6*3600;
 holdDurration = 10*3600;
 dischargeDurration = 8*3600;
-<<<<<<< HEAD
 numCycles = 2;
 
 dt = 60;
-=======
-numCycles = 7;
-
-dt = 600;
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 t = 0:dt:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
 
 %% Define all system components (note that default model parameters are set to match the Modelica G3P3 model
@@ -46,7 +40,6 @@ Qsolar = zeros(length(t), 1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 HX_MFH = MFH();
 
-<<<<<<< HEAD
 Ts_in_HX_MFH = HX_MFH.Ts0*ones(length(t), 1);
 Ts_out_HX_MFH = HX_MFH.Ts0*ones(length(t), 1);
 mdot_s_in_HX_MFH = zeros(length(t), 1);
@@ -62,19 +55,6 @@ mdot_s_in_Reciever_MFH = zeros(length(t), 1);
 mdot_s_out_Reciever_MFH = zeros(length(t), 1);
 Ts_Reciever_MFH = cell(length(t), 1);
 x_Reciever_MFH = cell(length(t), 1);
-=======
-Ts_in_HX_MFH = zeros(length(t), 1);
-Ts_out_HX_MFH = zeros(length(t), 1);
-mdot_s_in_HX_MFH = zeros(length(t), 1);
-mdot_s_out_HX_MFH = zeros(length(t), 1);
-
-Reciever_MFH = MFH();
-
-Ts_in_Reciever_MFH = zeros(length(t), 1);
-Ts_out_Reciever_MFH = zeros(length(t), 1);
-mdot_s_in_Reciever_MFH = zeros(length(t), 1);
-mdot_s_out_Reciever_MFH = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Falling Particle Reciever
@@ -83,15 +63,9 @@ mdot_s_out_Reciever_MFH = zeros(length(t), 1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 FPR_ = FPR();
 
-<<<<<<< HEAD
 Ts_in_FPR = FPR_.Ts0*ones(length(t), 1);
 mdot_s_in_FPR = zeros(length(t), 1);
 Ts_out_FPR = FPR_.Ts0*ones(length(t), 1);
-=======
-Ts_in_FPR = zeros(length(t), 1);
-mdot_s_in_FPR = zeros(length(t), 1);
-Ts_out_FPR = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_FPR = zeros(length(t), 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -132,17 +106,10 @@ mdot_s_out_hotTES = zeros(length(t), 1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 intTES = LSB();
 
-<<<<<<< HEAD
 Ts_in_intTES = intTES.Ts0*ones(length(t), 1);
 mdot_s_in_intTES = zeros(length(t), 1);
 mdot_s_out_intTES = zeros(length(t), 1);
 Ts_out_intTES = intTES.Ts0*ones(length(t), 1);
-=======
-Ts_in_intTES = zeros(length(t), 1);
-mdot_s_in_intTES = zeros(length(t), 1);
-mdot_s_out_intTES = zeros(length(t), 1);
-Ts_out_intTES = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 ms_intTES = zeros(length(t), 1);
 qloss_intTES = zeros(length(t), 1);
 
@@ -150,17 +117,10 @@ coldTES = LSB();
 coldTES.H = 7;
 coldTES.D = 4.5;
 
-<<<<<<< HEAD
 Ts_in_coldTES = coldTES.Ts0*ones(length(t), 1);
 mdot_s_in_coldTES = zeros(length(t), 1);
 mdot_s_out_coldTES = zeros(length(t), 1);
 Ts_out_coldTES = coldTES.Ts0*ones(length(t), 1);
-=======
-Ts_in_coldTES = zeros(length(t), 1);
-mdot_s_in_coldTES = zeros(length(t), 1);
-mdot_s_out_coldTES = zeros(length(t), 1);
-Ts_out_coldTES = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 ms_coldTES = zeros(length(t), 1);
 qloss_coldTES = zeros(length(t), 1);
 
@@ -174,21 +134,12 @@ qloss_coldTES = zeros(length(t), 1);
 HX_ = HX();
 HX_.n = 30;
 
-<<<<<<< HEAD
 Ts_in_HX = HX_.Ts0*ones(length(t), 1);
 Tco2_in_HX = HX_.Tco20*ones(length(t), 1);
 mdot_s_in_HX = zeros(length(t), 1);
 mdot_CO2_in_HX = zeros(length(t), 1);
 Ts_out_HX = HX_.Ts0*ones(length(t), 1);
 Tco2_out_HX = HX_.Tco20*ones(length(t), 1);
-=======
-Ts_in_HX = zeros(length(t), 1);
-Tco2_in_HX = zeros(length(t), 1);
-mdot_s_in_HX = zeros(length(t), 1);
-mdot_CO2_in_HX = zeros(length(t), 1);
-Ts_out_HX = zeros(length(t), 1);
-Tco2_out_HX = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_HX = zeros(length(t), 1);
 mdot_CO2_out_HX = zeros(length(t), 1);
 Ts_HX = cell(length(t), 1);
@@ -205,15 +156,9 @@ x_HX = zeros(length(t), 1);
 BE_ = BE();
 BE_.n = 30;
 
-<<<<<<< HEAD
 Ts_in_BE = BE_.Ts0*ones(length(t), 1);
 mdot_s_in_BE = zeros(length(t), 1);
 Ts_out_BE = BE_.Ts0*ones(length(t), 1);
-=======
-Ts_in_BE = zeros(length(t), 1);
-mdot_s_in_BE = zeros(length(t), 1);
-Ts_out_BE = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_BE = zeros(length(t), 1);
 Ts_BE = cell(length(t), 1);
 Tm_BE = cell(length(t), 1);
@@ -293,15 +238,9 @@ mdot_out_BucketElevatorJunction = zeros(length(t), 1);
 RecieverDownComer = FFD();
 RecieverDownComer.L = 10;
 
-<<<<<<< HEAD
 Ts_in_RecieverDownComer = RecieverDownComer.Ts0*ones(length(t), 1);
 mdot_s_in_RecieverDownComer = zeros(length(t), 1);
 Ts_out_RecieverDownComer = RecieverDownComer.Ts0*ones(length(t), 1);
-=======
-Ts_in_RecieverDownComer = zeros(length(t), 1);
-mdot_s_in_RecieverDownComer = zeros(length(t), 1);
-Ts_out_RecieverDownComer = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_RecieverDownComer = zeros(length(t), 1);
 Ts_RecieverDownComer = cell(length(t), 1);
 Tm_RecieverDownComer = cell(length(t), 1);
@@ -310,15 +249,9 @@ x_RecieverDownComer = cell(length(t), 1);
 HotBinBypass = FFD();
 HotBinBypass.L = 10;
 
-<<<<<<< HEAD
 Ts_in_HotBinBypass = HotBinBypass.Ts0*ones(length(t), 1);
 mdot_s_in_HotBinBypass = zeros(length(t), 1);
 Ts_out_HotBinBypass = HotBinBypass.Ts0*ones(length(t), 1);
-=======
-Ts_in_HotBinBypass = zeros(length(t), 1);
-mdot_s_in_HotBinBypass = zeros(length(t), 1);
-Ts_out_HotBinBypass = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_HotBinBypass = zeros(length(t), 1);
 Ts_HotBinBypass = cell(length(t), 1);
 Tm_HotBinBypass = cell(length(t), 1);
@@ -327,15 +260,9 @@ x_HotBinBypass = cell(length(t), 1);
 RecieverBypass = FFD();
 RecieverBypass.L = 10;
 
-<<<<<<< HEAD
 Ts_in_RecieverBypass = RecieverBypass.Ts0*ones(length(t), 1);
 mdot_s_in_RecieverBypass = zeros(length(t), 1);
 Ts_out_RecieverBypass = RecieverBypass.Ts0*ones(length(t), 1);
-=======
-Ts_in_RecieverBypass = zeros(length(t), 1);
-mdot_s_in_RecieverBypass = zeros(length(t), 1);
-Ts_out_RecieverBypass = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_RecieverBypass = zeros(length(t), 1);
 Ts_RecieverBypass = cell(length(t), 1);
 Tm_RecieverBypass = cell(length(t), 1);
@@ -344,15 +271,9 @@ x_RecieverBypass = cell(length(t), 1);
 HeaterDischarge = FFD();
 HeaterDischarge.L = 10;
 
-<<<<<<< HEAD
 Ts_in_HeaterDischarge = HeaterDischarge.Ts0*ones(length(t), 1);
 mdot_s_in_HeaterDischarge = zeros(length(t), 1);
 Ts_out_HeaterDischarge = HeaterDischarge.Ts0*ones(length(t), 1);
-=======
-Ts_in_HeaterDischarge = zeros(length(t), 1);
-mdot_s_in_HeaterDischarge = zeros(length(t), 1);
-Ts_out_HeaterDischarge = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_HeaterDischarge = zeros(length(t), 1);
 Ts_HeaterDischarge = cell(length(t), 1);
 Tm_HeaterDischarge = cell(length(t), 1);
@@ -361,15 +282,9 @@ x_HeaterDischarge = cell(length(t), 1);
 HotBinInlet = FFD();
 HotBinInlet.L = 10;
 
-<<<<<<< HEAD
 Ts_in_HotBinInlet = HotBinInlet.Ts0*ones(length(t), 1);
 mdot_s_in_HotBinInlet = zeros(length(t), 1);
 Ts_out_HotBinInlet = HotBinInlet.Ts0*ones(length(t), 1);
-=======
-Ts_in_HotBinInlet = zeros(length(t), 1);
-mdot_s_in_HotBinInlet = zeros(length(t), 1);
-Ts_out_HotBinInlet = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_HotBinInlet = zeros(length(t), 1);
 Ts_HotBinInlet = cell(length(t), 1);
 Tm_HotBinInlet = cell(length(t), 1);
@@ -378,15 +293,9 @@ x_HotBinInlet = cell(length(t), 1);
 HotBinDischarge = FFD();
 HotBinDischarge.L = 10;
 
-<<<<<<< HEAD
 Ts_in_HotBinDischarge = HotBinDischarge.Ts0*ones(length(t), 1);
 mdot_s_in_HotBinDischarge = zeros(length(t), 1);
 Ts_out_HotBinDischarge = HotBinDischarge.Ts0*ones(length(t), 1);
-=======
-Ts_in_HotBinDischarge = zeros(length(t), 1);
-mdot_s_in_HotBinDischarge = zeros(length(t), 1);
-Ts_out_HotBinDischarge = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_HotBinDischarge = zeros(length(t), 1);
 Ts_HotBinDischarge = cell(length(t), 1);
 Tm_HotBinDischarge = cell(length(t), 1);
@@ -395,15 +304,9 @@ x_HotBinDischarge = cell(length(t), 1);
 IntStorageDownComer = FFD();
 IntStorageDownComer.L = 10;
 
-<<<<<<< HEAD
 Ts_in_IntStorageDownComer = IntStorageDownComer.Ts0*ones(length(t), 1);
 mdot_s_in_IntStorageDownComer = zeros(length(t), 1);
 Ts_out_IntStorageDownComer = IntStorageDownComer.Ts0*ones(length(t), 1);
-=======
-Ts_in_IntStorageDownComer = zeros(length(t), 1);
-mdot_s_in_IntStorageDownComer = zeros(length(t), 1);
-Ts_out_IntStorageDownComer = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_IntStorageDownComer = zeros(length(t), 1);
 Ts_IntStorageDownComer = cell(length(t), 1);
 Tm_IntStorageDownComer = cell(length(t), 1);
@@ -412,15 +315,9 @@ x_IntStorageDownComer = cell(length(t), 1);
 HeatExchangerDownComer = FFD();
 HeatExchangerDownComer.L = 10;
 
-<<<<<<< HEAD
 Ts_in_HeatExchangerDownComer = HeatExchangerDownComer.Ts0*ones(length(t), 1);
 mdot_s_in_HeatExchangerDownComer = zeros(length(t), 1);
 Ts_out_HeatExchangerDownComer = HeatExchangerDownComer.Ts0*ones(length(t), 1);
-=======
-Ts_in_HeatExchangerDownComer = zeros(length(t), 1);
-mdot_s_in_HeatExchangerDownComer = zeros(length(t), 1);
-Ts_out_HeatExchangerDownComer = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_HeatExchangerDownComer = zeros(length(t), 1);
 Ts_HeatExchangerDownComer = cell(length(t), 1);
 Tm_HeatExchangerDownComer = cell(length(t), 1);
@@ -429,15 +326,9 @@ x_HeatExchangerDownComer = cell(length(t), 1);
 ColdBinBypass = FFD();
 ColdBinBypass.L = 10;
 
-<<<<<<< HEAD
 Ts_in_ColdBinBypass = ColdBinBypass.Ts0*ones(length(t), 1);
 mdot_s_in_ColdBinBypass = zeros(length(t), 1);
 Ts_out_ColdBinBypass = ColdBinBypass.Ts0*ones(length(t), 1);
-=======
-Ts_in_ColdBinBypass = zeros(length(t), 1);
-mdot_s_in_ColdBinBypass = zeros(length(t), 1);
-Ts_out_ColdBinBypass = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_ColdBinBypass = zeros(length(t), 1);
 Ts_ColdBinBypass = cell(length(t), 1);
 Tm_ColdBinBypass = cell(length(t), 1);
@@ -446,15 +337,9 @@ x_ColdBinBypass = cell(length(t), 1);
 ColdBinDischarge = FFD();
 ColdBinDischarge.L = 10;
 
-<<<<<<< HEAD
 Ts_in_ColdBinDischarge = ColdBinDischarge.Ts0*ones(length(t), 1);
 mdot_s_in_ColdBinDischarge = zeros(length(t), 1);
 Ts_out_ColdBinDischarge = ColdBinDischarge.Ts0*ones(length(t), 1);
-=======
-Ts_in_ColdBinDischarge = zeros(length(t), 1);
-mdot_s_in_ColdBinDischarge = zeros(length(t), 1);
-Ts_out_ColdBinDischarge = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_ColdBinDischarge = zeros(length(t), 1);
 Ts_ColdBinDischarge = cell(length(t), 1);
 Tm_ColdBinDischarge = cell(length(t), 1);
@@ -463,15 +348,9 @@ x_ColdBinDischarge = cell(length(t), 1);
 BucketElevatorDownComer = FFD();
 BucketElevatorDownComer.L = 10;
 
-<<<<<<< HEAD
 Ts_in_BucketElevatorDownComer = BucketElevatorDownComer.Ts0*ones(length(t), 1);
 mdot_s_in_BucketElevatorDownComer = zeros(length(t), 1);
 Ts_out_BucketElevatorDownComer = BucketElevatorDownComer.Ts0*ones(length(t), 1);
-=======
-Ts_in_BucketElevatorDownComer = zeros(length(t), 1);
-mdot_s_in_BucketElevatorDownComer = zeros(length(t), 1);
-Ts_out_BucketElevatorDownComer = zeros(length(t), 1);
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 mdot_s_out_BucketElevatorDownComer = zeros(length(t), 1);
 Ts_BucketElevatorDownComer = cell(length(t), 1);
 Tm_BucketElevatorDownComer = cell(length(t), 1);
@@ -479,22 +358,9 @@ x_BucketElevatorDownComer = cell(length(t), 1);
 
 %% System data table
 
-<<<<<<< HEAD
 sysData = table(Qsolar, Ts_in_HX_MFH, Ts_out_HX_MFH, mdot_s_in_HX_MFH, ...
     mdot_s_out_HX_MFH, Ts_HX_MFH, x_HX_MFH, Ts_in_Reciever_MFH, Ts_out_Reciever_MFH, ...
     mdot_s_in_Reciever_MFH, mdot_s_out_Reciever_MFH, Ts_Reciever_MFH, x_Reciever_MFH, Ts_in_FPR, ...
-=======
-Ts_in_Heater = zeros(length(t), 1);
-mdot_in_Heater = zeros(length(t), 1);
-Tset_Heater = zeros(length(t), 1);
-Ts_out_Heater = zeros(length(t), 1);
-mdot_out_Heater = zeros(length(t), 1);
-Qin_Heater = zeros(length(t), 1);
-
-sysData = table(Qsolar, Ts_in_HX_MFH, Ts_out_HX_MFH, mdot_s_in_HX_MFH, ...
-    mdot_s_out_HX_MFH, Ts_in_Reciever_MFH, Ts_out_Reciever_MFH, ...
-    mdot_s_in_Reciever_MFH, mdot_s_out_Reciever_MFH, Ts_in_FPR, ...
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
     mdot_s_in_FPR, Ts_out_FPR, mdot_s_out_FPR, Ts_in_Heater, ...
     mdot_in_Heater, Tset_Heater, Ts_out_Heater, mdot_out_Heater, ...
     Qin_Heater, Ts_in_hotTES, mdot_hotTES, Ts_out_hotTES, ...
@@ -609,7 +475,6 @@ for i = iStart:length(t)
     sysData.mdot_CO2_out_HX(i) = sysData.mdot_CO2_in_HX(i);
     
     % reciever collection limit
-<<<<<<< HEAD
     sysData.Qsolar(i) = step(HF_, DNI(i));
 %     if sysData.ms_coldTES(i-1) > 1000
 %         sysData.Qsolar(i) = step(HF_, DNI(i));
@@ -618,15 +483,6 @@ for i = iStart:length(t)
 %     end
     
     % hot bin diverter valve control
-=======
-    if sysData.ms_coldTES(i-1) > 1000
-        sysData.Qsolar(i) = step(HF_, DNI(i));
-    else
-        sysData.Qsolar(i) = 0;
-    end
-    
-    % reciever diverter valve control
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
 %     if sysData.Ts_in_HotBinDiverter(i-1) > 765 && ...
 %         sysData.Ts_in_HotBinDiverter(i-1) < 800
 %         y1_HotBinDiverter(i) = 1;        
@@ -641,17 +497,11 @@ for i = iStart:length(t)
     if hour_day(i) >= 1 && hour_day(i) < 9
         sysData.mdot_hotTES(i) = -5;
         sysData.y1_HotBinDiverter(i) = 0;
-<<<<<<< HEAD
         sysData.mdot_s_out_Heater(i) = 0;        
     elseif hour_day(i) >= 9 && hour_day(i) < 15
         sysData.mdot_hotTES(i) = 9;
         sysData.mdot_s_in_FPR(i) = 9;
         
-=======
-        sysData.mdot_s_out_Heater(i) = 0;
-    elseif hour_day(i) >= 9 && hour_day(i) < 15
-        sysData.mdot_hotTES(i) = 9;
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
         sysData.y1_HotBinDiverter(i) = 1;
         sysData.mdot_s_out_Heater(i) = 0.1;
     else
@@ -660,7 +510,6 @@ for i = iStart:length(t)
         sysData.mdot_s_out_Heater(i) = 0.1;
     end
     
-<<<<<<< HEAD
     % simulate system starting at the falling particle reciever
     [sysData.Ts_out_FPR(i), sysData.mdot_s_out_FPR(i)] = ...
         step(FPR_, sysData.Ts_in_FPR(i), Tinf(i), sysData.mdot_s_in_FPR(i), ...
@@ -680,9 +529,6 @@ for i = iStart:length(t)
     
     
     
-=======
-    % add connections to fully define the system
->>>>>>> 4363ca3f991cf6451b390d57e33299f67f9ff04f
     sysData.mdot_s_in_HeaterDischarge(i) = sysData.mdot_s_out_Heater(i);
     
     
