@@ -675,9 +675,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     end
                     % set charge flow rate parameters
                     obj.QChp = abs(mdot)/obj.rhopPack;
-                    Uinfp_ = obj.QChp/(pi*(obj.a0*obj.Hp)^2);
-                    Uinf_ = obj.Hp/obj.H_*Uinfp_;
-                    obj.QCh = Uinf_*(pi*(obj.a0*obj.H_)^2);
+                    obj.Uinfp = obj.QChp/(pi*(obj.a0*obj.Hp)^2);
+                    matchSimilarityParams(obj);
                     obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
                     resetImpl(obj);
                     obj.Bi5 = obj.Bi5C;
@@ -724,6 +723,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     obj.Qp = abs(mdot)/obj.rhopPack;
                     obj.Uinfp = obj.Qp/(pi*(obj.a0*obj.Hp)^2);
                     matchSimilarityParams(obj);
+                    resetImpl(obj);
                     obj.Bi5 = obj.Bi5D;
                     % compute temperature in top boundary
                     thetaT_ = iterateThetaT(obj, thetaS_, obj.rbar, thetaT_, obj.zhat, obj.rtop, zcenter_);
