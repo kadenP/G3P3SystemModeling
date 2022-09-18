@@ -21,7 +21,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         
         thetaA = 0.5                  % ambient temperature inside
         T0 = 800                    % (°C) initial temperature of particles in bin
-        Tinf = 20                   % (°C) ambient temperature
+%         Tinf = 20                   % (°C) ambient temperature
         Tref = 0                    % (°C) reference temperature 
         hInf = 10                   % (W/m2K) heat transfer coefficient to surroundings
         hcw = 10                     % (W/m2K) wall-particle boundary contact coefficient
@@ -97,6 +97,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
     properties (Access = protected)
         dt = 1                      % (s) time-step
         iteration = 0;
+        Tinf = 0;
         IC                      % initial condition storage
         zIC                     % z coordinates for initial condition storage
         rIC                     % radial coordinates for initial condition storage
@@ -434,17 +435,20 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name, in3name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name, in4name] = getInputNamesImpl(~)
           in1name = 'Tin';
-          in2name = 'mdot';
-          in3name = 't';
+          in2name = 'Tinf';
+          in3name = 'mdot';
+          in4name = 't';
         end
-        function [out1name, out2name, out3name, out4name, out5name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name, out4name, out5name, ...
+                out6name] = getOutputNamesImpl(~)
           out1name = 'Tout';
           out2name = 'Tbulk';
           out3name = 'Estored';
           out4name = 'ztop';
-          out5name = 'mdot_s_out';
+          out5name = 'ms';
+          out6name = 'mdot_s_out';
         end             
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -611,10 +615,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.FoEmpty = obj.t2Fo(obj.tEmpty);
             obj.Fo = 0:obj.df:obj.FoEnd;
         end
-        function [Ts_out, Ts_bulk, Estored, ztop_, ms, mdot_s_out] = stepImpl(obj, Tin, mdot, t)
+        function [Ts_out, Ts_bulk, Estored, ztop_, ms, mdot_s_out] = stepImpl(obj, Tin, Tinf, mdot, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             % initialize temperature matrices
+            obj.Tinf = Tinf;
             obj.df = obj.t2Fo(t, 1) - obj.FoNow;
             obj.dt = obj.Fo2t(obj.df, 0);             
             if obj.FoNow == 0
@@ -628,7 +633,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                 obj.nzH = ceil(obj.nzH0*obj.ztop);
                 [z_, obj.dzH] = nodeGen(obj, [0, obj.ztop], obj.nzH);
                 nch = length(z_); mch = length(r_);
-                IC_ = ones(nch, mch);
+                obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
+                IC_ = obj.thetaCi*ones(nch, mch);
                 initializeBaseSys(obj);
                 initializeWallSys(obj);
                 computeBaseSys(obj, 1, obj.df);
@@ -678,6 +684,13 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     obj.Uinfp = obj.QChp/(pi*(obj.a0*obj.Hp)^2);
                     matchSimilarityParams(obj);
                     obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
+                    % take bulk volumetric average (temporary
+                    % approximation)
+                    fz = simpsonIntegrator(obj, z_);
+                    fr = simpsonIntegrator(obj, r_);
+                    Ir = 2*(r_.*IC_)*fr';
+                    theta_bulk = Ir'*fz'./(max(r_)^2*max(z_));
+                    IC_ = theta_bulk*ones(size(IC_));
                     resetImpl(obj);
                     obj.Bi5 = obj.Bi5C;
                     % compute charge temperature values for current time step
@@ -943,7 +956,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             [R, Z] = meshgrid(rIC, zIC);
             [Rq, Zq] = meshgrid(r_, z_);
             theta_ = interp2(R, Z, IC, Rq, Zq, 'spline');
-            theta_ = ones(size(theta_));
+            theta_ = obj.thetaCi*ones(size(theta_));
         end
         function [thetaS_, zbar_, thetaC_, zcenter_, thetaT_] ...
                                 = matchDischargeIC(obj, IC, zIC, rIC)
@@ -1355,14 +1368,14 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             g1_ = obj.Bi1*(yt - thetaI_);
             g3_ = obj.Bi3*(yc - thetaI_);
             if obj.FoModePrev ~= 'D'
-                obj.g1 = 0*g1_;
-                obj.g3 = 0*g3_;
+                obj.g1 = obj.Bi1*(ones(size(g1_)) - thetaI_);
+                obj.g3 = obj.Bi3*(ones(size(g3_)) - thetaI_);
             end
             if isempty(obj.g1)
-                obj.g1 = 0*g1_; %obj.Bi1*(ones(size(g1_)) - thetaI_); 
+                obj.g1 = obj.Bi1*(ones(size(g1_)) - thetaI_); 
             end
             if isempty(obj.g3)
-                obj.g3 = 0*g3_; %obj.Bi3*(ones(size(g3_)) - thetaI_); 
+                obj.g3 = obj.Bi3*(ones(size(g3_)) - thetaI_); 
             end
             for i = 1:length(beta_)
                 RD_ = Xm(obj, r_, eta_(i));
@@ -1935,20 +1948,20 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % fits z meshes to be between 0 and ztop, resizing dzbar and
             % dzc accordingly. Adjusts the length according to the time
             % step relative to the set update frequency, modZ.
-%             [~, n] = min(abs(obj.FoNow - obj.Fo));
-%             if mod(n, obj.modZS) == 0
-%                 obj.nzbar = length(obj.zbar) - 1; 
-%             else
-%                 obj.nzbar = length(obj.zbar);
-%             end
-%             if mod(n, obj.modZC) == 0
-%                 nzc = length(obj.zcenter) - 1;
-%             else
-%                 nzc = length(obj.zcenter);
-%             end
+            [~, n] = min(abs(obj.FoNow - obj.Fo));
+            if mod(n, obj.modZS) == 0
+                obj.nzbar = length(obj.zbar) - 1; 
+            else
+                obj.nzbar = length(obj.zbar);
+            end
+            if mod(n, obj.modZC) == 0
+                nzc_ = length(obj.zcenter) - 1;
+            else
+                nzc_ = length(obj.zcenter);
+            end
             [obj.zbar, obj.dzbar] = ...
                             nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            obj.zcenter = linspace(0, obj.ztop, nzc);
+            obj.zcenter = linspace(0, obj.ztop, nzc_);
             obj.dzc = obj.zcenter(2);
             computeWbar(obj);
             computeUbar(obj);            

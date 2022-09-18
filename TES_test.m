@@ -1,5 +1,5 @@
 TES_ = TES();
-TES_.T0 = 800;
+TES_.T0 = 775;
 
 % setup cycles (time units in seconds)
 chargeDurration = 6*3600;
@@ -14,7 +14,7 @@ nh = ceil(holdDurration/dt);
 nd = ceil(dischargeDurration/dt);
 nCycle = nc + nh + nd;
 
-mdot = zeros(1, length(t));
+mdot = zeros(length(t), 1);
 for i = 1:numCycles
     for j = 1:nCycle
         if j <= nc
@@ -27,17 +27,20 @@ for i = 1:numCycles
     end    
 end
 
-Tin = 800; % + 20*sin(pi*t/3600);
-
-y1 = zeros(size(t)); y1(1) = TES_.T0;
-y2 = zeros(size(t)); y2(1) = TES_.T0;
-y3 = zeros(size(t));
-y4 = zeros(size(t)); y4(1) = 0.1;
-profile on;
-for i = 2:length(t)
-    [y1(i), y2(i), y3(i), y4(i)] = step(TES_, Tin, mdot(i), t(i));
+Tin = 775; % + 20*sin(pi*t/3600);
+Tinf = 0;
+Ts_out = zeros(size(t)); Ts_out(1) = TES_.T0;
+Ts_bulk = zeros(size(t)); Ts_bulk(1) = TES_.T0;
+Estored = zeros(size(t));
+ztop_ = zeros(size(t)); ztop_(1) = 0.1;
+ms = zeros(size(t));
+mdot_s_out = zeros(size(t));
+% profile on;
+for i = 1:length(t)
+    [Ts_out(i), Ts_bulk(i), Estored(i), ztop_(i), ms(i), mdot_s_out(i)] = ...
+        step(TES_, Tin, Tinf, mdot(i), t(i));
 end
-profsave;
+% profsave;
 
 
 
