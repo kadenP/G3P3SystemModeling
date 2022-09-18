@@ -812,6 +812,9 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.IC(1:n_, 1:m_) = IC_;
             obj.zIC(1:n_) = z_;
             obj.rIC(1:m_) = r_;
+            
+            % print status
+            printStatus(obj, Ts_out, Ts_bulk, Estored, ztop_, ms, mdot);
                                                                                                                 
         end       
         %% Backup/restore functions
@@ -915,7 +918,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % reset model flow rates
             obj.rhoPack = obj.k/(obj.alphaPacked*obj.cp);
             obj.Q = obj.Uinf*pi*(obj.a0*obj.H_)^2;
-%             obj.QCh = Qcharge/Qdischarge*obj.Q;
+            obj.QCh = obj.Uinf*pi*(obj.a0*obj.H_)^2;
 
             % Biot numbers for boundary condition scaling
             obj.h1 = obj.Bip1*obj.k/obj.H_;
@@ -2427,7 +2430,16 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % other
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+        function printStatus(~, Ts_out, Ts_bulk, Estored, ztop_, ...
+                ms, mdot)
+            fprintf('---------------------------------------------------\n')
+            fprintf(strcat('Ts_out = %1.0f °C\nTs_bulk = %1.0f °C', ...
+                '\nEstored = %1.2g J\nztop = %1.2f\nms = %1.2g kg', ...
+                '\nmdot = %1.2f kg/s\n'), [Ts_out, Ts_bulk, Estored, ...
+                ztop_, ms, mdot]);
+            fprintf('---------------------------------------------------\n')
+        end
         function x = thetak(obj, k_)
             % returns theta matrix at time step k_
             ns = length(obj.zhat) - 1; nl = length(obj.zbar0); n = ns + nl;
