@@ -619,7 +619,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             % initialize temperature matrices
-%             obj.Tinf = Tinf;
+            obj.Tinf = Tinf;
             obj.df = obj.t2Fo(t, 1) - obj.FoNow;
             obj.dt = obj.Fo2t(obj.df, 0);             
             if obj.FoNow == 0
@@ -1368,14 +1368,14 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             g1_ = obj.Bi1*(yt - thetaI_);
             g3_ = obj.Bi3*(yc - thetaI_);
             if obj.FoModePrev ~= 'D'
-                obj.g1 = 0*g1_;
-                obj.g3 = 0*g3_;
+                obj.g1 = obj.Bi1*(ones(size(g1_)) - thetaI_);
+                obj.g3 = obj.Bi3*(ones(size(g3_)) - thetaI_);
             end
             if isempty(obj.g1)
-                obj.g1 = 0*g1_; %obj.Bi1*(ones(size(g1_)) - thetaI_); 
+                obj.g1 = obj.Bi1*(ones(size(g1_)) - thetaI_); 
             end
             if isempty(obj.g3)
-                obj.g3 = 0*g3_; %obj.Bi3*(ones(size(g3_)) - thetaI_); 
+                obj.g3 = obj.Bi3*(ones(size(g3_)) - thetaI_); 
             end
             for i = 1:length(beta_)
                 RD_ = Xm(obj, r_, eta_(i));
@@ -1948,20 +1948,20 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % fits z meshes to be between 0 and ztop, resizing dzbar and
             % dzc accordingly. Adjusts the length according to the time
             % step relative to the set update frequency, modZ.
-%             [~, n] = min(abs(obj.FoNow - obj.Fo));
-%             if mod(n, obj.modZS) == 0
-%                 obj.nzbar = length(obj.zbar) - 1; 
-%             else
-%                 obj.nzbar = length(obj.zbar);
-%             end
-%             if mod(n, obj.modZC) == 0
-%                 nzc = length(obj.zcenter) - 1;
-%             else
-%                 nzc = length(obj.zcenter);
-%             end
+            [~, n] = min(abs(obj.FoNow - obj.Fo));
+            if mod(n, obj.modZS) == 0
+                obj.nzbar = length(obj.zbar) - 1; 
+            else
+                obj.nzbar = length(obj.zbar);
+            end
+            if mod(n, obj.modZC) == 0
+                nzc_ = length(obj.zcenter) - 1;
+            else
+                nzc_ = length(obj.zcenter);
+            end
             [obj.zbar, obj.dzbar] = ...
                             nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            obj.zcenter = linspace(0, obj.ztop, nzc);
+            obj.zcenter = linspace(0, obj.ztop, nzc_);
             obj.dzc = obj.zcenter(2);
             computeWbar(obj);
             computeUbar(obj);            

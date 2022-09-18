@@ -22,7 +22,7 @@ numCycles = 7;
 dt1 = 10;
 t1 = 0:dt1:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
 
-dt2 = 600;
+dt2 = 1200;
 t2 = 0:dt2:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
 
 
@@ -166,8 +166,8 @@ sysData2 = table(Ts_in_hotTES, mdot_hotTES, Ts_out_hotTES, Ts_bulk_hotTES, Estor
 weather = readtable('ABQ_Weather_Lookup.xlsx');
 
 % Winter Week (Dec 21 - Dec 28)
-t_h_start = 8497; [~, ti_start] = min(abs(weather.time - t_h_start));
-t_h_end = 8665; [~, ti_end] = min(abs(weather.time - t_h_end));
+% t_h_start = 8497; [~, ti_start] = min(abs(weather.time - t_h_start));
+% t_h_end = 8665; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Spring Week (March 21 - March 28)
@@ -176,8 +176,8 @@ t_h_end = 8665; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Summer Week (June 21 - June 28)
-% t_h_start = 4105; [~, ti_start] = min(abs(weather.time - t_h_start));
-% t_h_end = 4273; [~, ti_end] = min(abs(weather.time - t_h_end));
+t_h_start = 4105; [~, ti_start] = min(abs(weather.time - t_h_start));
+t_h_end = 4273; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Fall Week (September 23 - September 30)
@@ -284,8 +284,9 @@ for i = iStart2:length(t2)
         sysData2.mdot_s_in_hotBinDischarge(i) = 0;
     end
     
-    sysData2.Ts_in_hotTES(i) = interp1(t_h_start + t1/3600, sysData1.Ts_out_RecieverDownComer, ...
-        t_h_start + t2(i)/3600, 'makima');
+%     sysData2.Ts_in_hotTES(i) = interp1(t_h_start + t1/3600, sysData1.Ts_out_RecieverDownComer, ...
+%         t_h_start + t2(i)/3600, 'makima');
+    sysData2.Ts_in_hotTES(i) = 775;
     
     [sysData2.Ts_out_hotTES(i), sysData2.Ts_bulk_hotTES(i), sysData2.Estored_hotTES(i), ...
         sysData2.ztop_hotTES(i), sysData2.ms_hotTES(i), sysData2.mdot_s_out_hotTES(i)] = ...
