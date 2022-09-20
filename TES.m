@@ -114,35 +114,36 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         nrIC = 1000             % number of r-nodes for full r coordinate storage
         nrbar = 600             % number of r-nodes to use for stagnant region
         nrH = 600               % number of r-nodes to use for 'H' and 'C' computations       
-        nzbar                   % number of z-nodes to use for stagnant region 
+        nzbar = 1000            % number of z-nodes to use for stagnant region 
         nzbar0 = 1000           % max number of z-nodes for stagnant region
-        nzH                     % number of z-nodes to use for 'H' and 'C' computations
-        nzH0 = 2000             % max number of z-nodes to use for 'H' and 'C' modes
-        nzc                     % number of nodes to use for center flow channel
+        nzH = 1000              % number of z-nodes to use for 'H' and 'C' computations
+        nzH0 = 1500             % max number of z-nodes to use for 'H' and 'C' modes
+        nzc = 100               % number of nodes to use for center flow channel
         nzc0 = 100              % max number of z-nodes for center channel
         nzhat = 25              % number of z-nodes to use for top flow channel
         nrhat = 50              % number of r-nodes for center channel
+        nrtop = 600             % number of r-nodes in top flow channel
         nzbarW = 1000           % number of nodes used in zbarW
         nrbarW = {100}          % number of nodes used in rbarW
         z = []                  % z-coordinates for whole domain
         r = []                  % r-coordinates for whole domain
         zmc = []                % z-mesh for mass flow cone
-        dr = 0.01                  % radial mesh size for full domain computations
-        dz = 0.01                  % z-mesh size for full domain computations
-        drH = 0.001                 % nondimensional radius mesh for 'H'  
-        drtop = 0.005                % nondimensional radius top boundary mesh size
-        drbar = 0.00005               % nondimensional radius large mesh size
-        drhat = 0.002                % nondimensional radius small mesh size
-        dzH = 0.001                 % nondimensional height mesh for 'H'
-        dzc = 0.005                  % nondimensional height center channel mesh size
-        dzbar = 0.0001               % nondimensional height large mesh size         
-        dzhat = 0.0001                % nondimensional height small mesh size
+        dr = 0                  % radial mesh size for full domain computations
+        dz = 0                  % z-mesh size for full domain computations
+        drH = 0                 % nondimensional radius mesh for 'H'  
+        drtop = 0               % nondimensional radius top boundary mesh size
+        drbar = 0               % nondimensional radius large mesh size
+        drhat = 0               % nondimensional radius small mesh size
+        dzH = 0                 % nondimensional height mesh for 'H'
+        dzc = 0                 % nondimensional height center channel mesh size
+        dzbar = 0               % nondimensional height large mesh size         
+        dzhat = 0               % nondimensional height small mesh size
         Fo = []                 % non-dimensional time (Fourier number) vector
         FoEnd = 0               % nondimensional end time
-        FoNow = 0              % current iteration non-dimensional time
-        FoModePrev = 'H'          % current cycle mode (H, D, C)
-        FoEmpty = 0            % non-dimensional time when tank is completely empty
-        tEmpty = 0             % time when tank is completely empty
+        FoNow = 0               % current iteration non-dimensional time
+        FoModePrev = 'H'        % current cycle mode (H, D, C)
+        FoEmpty = 0             % non-dimensional time when tank is completely empty
+        tEmpty = 0              % time when tank is completely empty
         beta = []               % stagnant radial temperature solution
         eta = []                % stagnant z temperature solution
         etaFD = []              % eigenvalues for discharge filter 1
@@ -164,7 +165,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         psiS = []               % stagnant region homogeneous temperature solution         
         thetaO = []             % centerline temperature at outlet
         thetaOB = []            % bulk temperature at outlet
-        thetaS = []                  % stagnant region temperature solution
+        thetaS = []             % stagnant region temperature solution
         thetaSDot = []          % stagnant region temperature time derivative
         FS0 = []                % initial condition matrix for stagnant region
         FD = []                 % discharg homogeneaous filtering function
@@ -173,13 +174,13 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         RIC = []                % radial initial condition component (static)
         thetaBC1 = []           % stagnant temperature contribution from BC1
         thetaBC1Dot = []        % derivative of stagnant temperature contribution from BC1
-        g1 = []                  % nonhomogeneous time-dependent BC1
-        g2 = []                  % nonhomogeneous BC2
+        g1 = []                 % nonhomogeneous time-dependent BC1
+        g2 = []                 % nonhomogeneous BC2
         thetaBC3 = []           % stagnant temperature contribution from BC3
         thetaBC3Dot = []        % derivative of stagnant temperature contribution from BC3
-        g3 = []                  % nonhomogeneous time-dependent BC3
-        g4 = []                  % nonhomogeneous BC4
-        g4f = []                 % s.s. filter portion of BC4
+        g3 = []                 % nonhomogeneous time-dependent BC3
+        g4 = []                 % nonhomogeneous BC4
+        g4f = []                % s.s. filter portion of BC4
         thetaT = []             % top boundary temperature solution
         expTop = []             % static matrix exponential for top solution
         expMC = []              % static matrix exponential for mass flow cone
@@ -268,7 +269,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         thetaW = []             % composite wall solution/s        
         thetaWIC = []           % IC contribution for thetaW
         thetaWBC = []           % BC contribution for thetaW
-        gW1 = 0                % current inner wall boundary condition
+        gW1 = 0                 % current inner wall boundary condition
         IBCW = []               % stored inner wall boundary conditions, f(z, t)
         rhoW = []               % composite wall initial condition/s
         zbarW = []              % z-dimension vectors for composite wall
@@ -330,17 +331,17 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         Bip5D = 0               % Biot number for discharge mode
         Bip5H = 0               % Biot number for holding mode
         Bip5C = 0               % Biot number for chargeing mode
-        rhoPack = 2000              % (kg/m3) particle packed bulk density
-        rhoLoose = 1810             % (kg/m3) particle loose bulk density
-        cp = 1025.965               % (J/kgK) average particle heat capacity       
-        k = 0.4                     % (W/mK) particle packed thermal conductivity
+        rhoPack = 2000          % (kg/m3) particle packed bulk density
+        rhoLoose = 1810         % (kg/m3) particle loose bulk density
+        cp = 1025.965           % (J/kgK) average particle heat capacity       
+        k = 0.4                 % (W/mK) particle packed thermal conductivity
         Gap = 0                 % Galilei number
         Prp = 0                 % Prandtl number
         Rep = 0                 % Reynolds number w.r.t. Uinf
         Pep = 0                 % Peclet number w.r.t. Uinf 
         Uinfp = 0               % prototype outlet velocity
-        Qp = 1e-6                   % (m3/s) discharge flow rate
-        QChp = 1e-6                 % (m3/s) charge flow rate  
+        Qp = 1e-6               % (m3/s) discharge flow rate
+        QChp = 1e-6             % (m3/s) charge flow rate  
         Q = 0                   % (m3/s) prototype volumetric flow rate
         QCh = 0                 % (m3/s) prototype charging flow rate
         ztop = []               % zbar element of top surface
@@ -358,36 +359,36 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         alphaLoose = 0          % (m2/s) particle thermal diffusivity
         nup = 0                 % (m2/s) dynamic viscosity of particles moving in air 
         nu = 0                  % (m2/s) dynamic viscosity of particles moving in air 
-        CapS = 0               % (J/m2K) relative thermal capacitance of stagnant region
-        epsilon2 = 0           % ratio of base thermal capacitance to stagnant region thermal capacitance
-        epsilon4 = 0           % ratio of wall thermal capacitance to stagnant region thermal capacitance 
-        h1 = 10                     % (W/m2K) heat transfer coefficient at boundary 1
-        h2 = 0.07                   % (W/m2K) heat transfer coefficient at boundary 2
-        h3 = 5                      % (W/m2K) heat transfer coefficient at boundary 3
-        h4 = 0.07                   % (W/m2K) heat transfer coefficient at boundary 4
-        h5 = 0.2                     % (W/m2K) heat transfer coefficient for free surface
-        h5D = 0.2                    % (W/m2K) heat transfer coefficient at free surface for discharge mode
-        h5H = 0.2                    % (W/m2K) heat transfer coefficient at free surface for holding mode
-        h5C = 0.1                     % (W/m2K) heat transfer coefficient at free surface for chargeing mode
-        Bi1 = 0                % Biot number at boundary 1
-        Bi2 = 0                % "" boundary 2
-        Bi3 = 0                % "" boundary 3
-        Bi4 = 0                % "" boundary 4
-        Bi5 = 0                % "" surface of top boundary open to air
-        Bi5D = 0               % "" for discharge mode
-        Bi5H = 0               % "" for holding mode
-        Bi5C = 0               % "" for chargeing mode
-        Ga = 0                 % Galilei number
-        Pr = 0                 % Prandtl number
-        Re = 0                 % Reynolds number w.r.t. Uinf
-        Pe = 0                 % Peclet number w.r.t. Uinf 
+        CapS = 0                % (J/m2K) relative thermal capacitance of stagnant region
+        epsilon2 = 0            % ratio of base thermal capacitance to stagnant region thermal capacitance
+        epsilon4 = 0            % ratio of wall thermal capacitance to stagnant region thermal capacitance 
+        h1 = 10                 % (W/m2K) heat transfer coefficient at boundary 1
+        h2 = 0.07               % (W/m2K) heat transfer coefficient at boundary 2
+        h3 = 5                  % (W/m2K) heat transfer coefficient at boundary 3
+        h4 = 0.07               % (W/m2K) heat transfer coefficient at boundary 4
+        h5 = 0.2                % (W/m2K) heat transfer coefficient for free surface
+        h5D = 0.2               % (W/m2K) heat transfer coefficient at free surface for discharge mode
+        h5H = 0.2               % (W/m2K) heat transfer coefficient at free surface for holding mode
+        h5C = 0.1               % (W/m2K) heat transfer coefficient at free surface for chargeing mode
+        Bi1 = 0                 % Biot number at boundary 1
+        Bi2 = 0                 % "" boundary 2
+        Bi3 = 0                 % "" boundary 3
+        Bi4 = 0                 % "" boundary 4
+        Bi5 = 0                 % "" surface of top boundary open to air
+        Bi5D = 0                % "" for discharge mode
+        Bi5H = 0                % "" for holding mode
+        Bi5C = 0                % "" for chargeing mode
+        Ga = 0                  % Galilei number
+        Pr = 0                  % Prandtl number
+        Re = 0                  % Reynolds number w.r.t. Uinf
+        Pe = 0                  % Peclet number w.r.t. Uinf 
         cGet = []               % index array for obtaining eigenvalues
         cGetFD = []             % index array for obtaining eigenvalues
         cGetH = []              % index array for obtaining eigenvalues
         cGetFH = []             % index array for obtaining eigenvalues
         cGetW = []              % index array for obtaining eigenvalues
         cGetWBC = []            % index array for obtaining eigenvalues
-        df = 0                 % nondimensional time-step
+        df = 0                  % nondimensional time-step
         vtbl = []               % table containing all static variables
         cfig = []               % figure showing Fourier coefficients
         betafig = []            % figure showing beta values
@@ -479,12 +480,12 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.df = t2Fo(obj, obj.dt);
 %             initializeWallSys(obj);
             obj.ztop = 0.05;
-            obj.rtop = obj.a:obj.drtop:obj.b;
+            [obj.rtop, obj.drtop] = nodeGen(obj, [obj.a, obj.b], obj.nrtop);
             [obj.rbar, obj.drbar] = ... 
                         nodeGen(obj, [obj.a0, obj.b], obj.nrbar);
             [obj.rbarH, obj.drH] = ... 
                         nodeGen(obj, [0, obj.b], obj.nrH);
-            obj.rhat = 1e-6:obj.drhat:obj.a0;
+            [obj.rhat, obj.drhat] = nodeGen(obj, [1e-6, obj.a0], obj.nrhat);
             obj.r = [obj.rhat, obj.rbar(2:end)];
             obj.nzbar = ceil(obj.nzbar0*obj.ztop);
             obj.zbar0 = nodeGen(obj, [0, obj.ztop], obj.nzbar);
@@ -493,8 +494,9 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.nzH = ceil(obj.nzH0*obj.ztop);
             [obj.zbarH, obj.dzH] = ... 
                         nodeGen(obj, [0, obj.ztop], obj.nzH);
-            obj.zcenter = 0:obj.dzc:obj.ztop;
-            obj.zhat = 0:obj.dzhat:obj.h;
+            obj.nzc = ceil(obj.nzc0*obj.ztop);
+            [obj.zcenter, obj.dzc] = nodeGen(obj, [0, obj.ztop], obj.nzc);
+            [obj.zhat, obj.dzhat] = nodeGen(obj, [0, obj.h], obj.nzhat);
             obj.z = [obj.zbar0, 1+obj.zhat(2:end)];
             obj.zIC = NaN*ones(1, obj.nzIC);
             obj.rIC = NaN*ones(1, obj.nrIC);
@@ -555,20 +557,22 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % Initialize / reset discrete-state properties
             % recomputes static variables. needs to be run if any of the
             % system properties are changed externally.
-            obj.rtop = obj.a:obj.drtop:obj.b;
+            [obj.rtop, obj.drtop] = nodeGen(obj, [obj.a, obj.b], obj.nrtop);
             [obj.rbar, obj.drbar] = ... 
                         nodeGen(obj, [obj.a0, obj.b], obj.nrbar);
             [obj.rbarH, obj.drH] = ... 
                         nodeGen(obj, [0, obj.b], obj.nrH);
-            obj.rhat = 1e-6:obj.drhat:obj.a0; 
+            [obj.rhat, obj.drhat] = nodeGen(obj, [1e-6, obj.a0], obj.nrhat);
             obj.r = [obj.rhat, obj.rbar(2:end)];
-            obj.zbar0 = nodeGen(obj, [0, 1], obj.nzbar);
+            obj.nzbar = ceil(obj.nzbar0*obj.ztop);
+            obj.zbar0 = nodeGen(obj, [0, obj.ztop], obj.nzbar);
             [obj.zbar, obj.dzbar] = ... 
                         nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            obj.zcenter = 0:obj.dzc:obj.ztop;
-            obj.zhat = 0:obj.dzhat:obj.h; 
+            obj.nzH = ceil(obj.nzH0*obj.ztop);
             [obj.zbarH, obj.dzH] = ... 
                         nodeGen(obj, [0, obj.ztop], obj.nzH);
+            [obj.zcenter, obj.dzc] = nodeGen(obj, [0, obj.ztop], obj.nzc);
+            [obj.zhat, obj.dzhat] = nodeGen(obj, [0, obj.h], obj.nzhat);
             obj.z = [obj.zbar0, 1+obj.zhat(2:end)];
             obj.HNow = obj.zbar(end)*obj.H_;  
             obj.HNowC = obj.zbarH(end)*obj.H_;
@@ -966,9 +970,10 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.ztop = obj.ztop - obj.h;
             obj.HNow = obj.ztop*obj.H_;
             obj.nzbar = ceil(obj.nzbar0*obj.ztop);
+            obj.nzc = ceil(obj.nzc0*obj.ztop);
             [zbar_, obj.dzbar] = ...
                             nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            zcenter_ = 0:obj.dzc:obj.ztop;
+            [zcenter_, obj.dzc] = nodeGen(obj, [0, obj.ztop], obj.nzc);
             [~, i] = min(abs(zbar_(end) - zIC));
             [~, j] = min(abs(obj.rbar(1) - rIC));
             % match dimensions for stagnant region            
@@ -989,9 +994,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % extracts the temperature profiles and spatial domains for the
             % stagnant region, top flow surface, and center flow channel
             obj.nzbar = ceil(obj.nzbar0*obj.ztop);
+            obj.nzc = ceil(obj.nzc0*obj.ztop);
             [zbar_, obj.dzbar] = ...
                             nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            zcenter_ = 0:obj.dzc:obj.ztop;
+            [zcenter_, obj.dzc] = ...
+                            nodeGen(obj, [0, obj.ztop], obj.nzc);
             [~, i] = min(abs(zbar_(end) - zIC));
             [~, j] = min(abs(obj.rbar(1) - rIC));
             % stagnant region
@@ -1695,125 +1702,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             thetaC_(1, :) = obj.thetaChat;
         end               
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % storage bin quiescent air temperature
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function computeThetaA(obj, thetaP, z_, r_)
-            % computes the air temperature at the current iteration
-            t = obj.Fo2t(obj.df, 1); n = length(z_); m = length(r_);
-            % heat loss (W) at the particle boundary
-            if isempty(obj.qTopP)
-                obj.qTopP = cell(2, 1);
-                obj.qTopP{1} = zeros(1, m);
-            else
-                obj.qTopP{1} = obj.qTopP{2};
-            end
-            fr = simpsonIntegrator(obj, r_);
-            obj.qTopP{2} = -obj.kp*(thetaP(end, :) - thetaP(end-1, :))./ ...
-                         (z_(end) - z_(end-1))*(obj.T0 - obj.Tinf)/obj.Hp;
-            qTopP_ = 2*pi*fr*(obj.qTopP{1}.*r_)'*obj.Hp^2;
-            qTopP__ = 2*pi*fr*((obj.qTopP{2} - obj.qTopP{1}) ...
-                                                     ./t.*r_)'*obj.Hp^2; 
-            % heat loss (W) at the top bin boundary
-            At = pi*obj.bp^2*obj.Hp^2;
-            qTop_ = obj.qLossT(1)*At;
-            qTop__ = (obj.qLossT(2) - obj.qLossT(1))/t*At;
-            % heat loss (W) at wall boundary
-            [~, zwi] = min(abs(obj.ztop - obj.zbarW));
-            zw = obj.zbarW(zwi:end);
-            fz = simpsonIntegrator(obj, zw);
-            qWall_ = 2*pi*obj.bp*fz*obj.qWall{1, 1}(zwi:end)*obj.Hp^2;
-            qWall__ = 2*pi*obj.bp*fz*(obj.qWall{2, 1}(zwi:end) - ...
-                                   obj.qWall{1, 1}(zwi:end))/t*obj.Hp^2;
-            % compute thetaA
-            cp_ = 1005;     % (J/kgK)
-            rho_ = 1.225;   % (m3/kg)
-            V = pi*obj.b^2*(1 - obj.ztop)*obj.Hp^3;
-            C_ = cp_*rho_*V;            
-            TA = obj.theta2T(obj.thetaA) + t*(qTopP_ - qTop_ - qWall_)/C_ ...
-                + 0.5*t^2*(qTopP__ - qTop__ - qWall__)/C_;
-            obj.thetaA = obj.T2theta(TA);
-        end
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % storage bin top, base and wall RC model
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function computeUtop(obj)
-            % computes the overall heat transfer coefficient for the base
-            % using the insulation cell array
-            R = 0;
-            for i = 1:size(obj.roofInsulation, 1)
-                t = abs(obj.roofInsulation{i, 2}(2) - ...
-                                            obj.roofInsulation{i, 2}(1));
-                k_ = obj.roofInsulation{i, 3};
-                R = R + t/(pi*(obj.bp*obj.Hp)^2*k_);
-            end
-            R = R + 1/(pi*(obj.bp*obj.Hp)^2*obj.hInf);            
-            obj.hpTop = 1/(pi*(obj.bp*obj.Hp)^2*R);
-        end
-        function computeUbase(obj)
-            % computes the overall heat transfer coefficient for the base
-            % using the insulation cell array
-            R = 0;
-            for i = 1:size(obj.baseInsulation, 1)
-                t = abs(obj.baseInsulation{i, 2}(2) - ...
-                                            obj.baseInsulation{i, 2}(1));
-                k_ = obj.baseInsulation{i, 3};
-                R = R + t/(pi*(obj.bp*obj.Hp)^2*k_);
-            end
-            R = R + 1/(pi*(obj.bp*obj.Hp)^2*obj.hInf);            
-            obj.hp2 = 1/(pi*(obj.bp*obj.Hp)^2*R);
-        end
-        function computeUwall(obj)
-            % computes the overall heat transfer coefficient for the wall
-            % using the insulation cell array
-            R = 0;
-            for i = 1:size(obj.wallInsulation, 1)
-                r1 = obj.wallInsulation{i, 2}(1);
-                r2 = obj.wallInsulation{i, 2}(2);
-                k_ = obj.wallInsulation{i, 3};
-                R = R + log(r2/r1)/(2*pi*obj.Hp*k_);
-            end
-            R = R + 1/(2*pi*r2*obj.Hp*obj.hInf);
-            obj.hp4 = 1/(2*pi*obj.bp*obj.Hp^2*R);
-        end
-        function initializeTopSys(obj)
-            % computes the linear RC system for the storage tank base
-            N = size(obj.roofInsulation, 1); 
-            obj.Rtop = {}; obj.Ctop = {}; 
-            % insulation layer capacitance and resistance
-            for i = 1:N
-                obj.Rtop{i, 1} = obj.roofInsulation{i, 1};
-                obj.Ctop{i, 1} = obj.roofInsulation{i, 1};
-                t = obj.roofInsulation{i, 2}(2) - ...
-                                          obj.roofInsulation{i, 2}(1);
-                k_ = obj.roofInsulation{i, 3};
-                rho_ = obj.roofInsulation{i, 4};
-                c_ = obj.roofInsulation{i, 5};
-                obj.Rtop{i, 2} = t/(pi*(obj.bp*obj.Hp)^2*k_);
-                obj.Ctop{i, 2} = rho_*c_*t;
-            end
-            % convective resistance
-            obj.Rtop{N + 1, 1} = 'convection';
-            obj.Rtop{N + 1, 2} = 1/(pi*(obj.bp*obj.Hp)^2*obj.hInf);
-            % time constants
-            obj.tauTop = NaN*ones(N, 2);
-            obj.tauTop(:, 1) = obj.Hp^2./(obj.alphapPacked* ...
-                              [obj.Ctop{:, 2}].*[obj.Rtop{1:end-1, 2}]);
-            obj.tauTop(:, 2) = obj.Hp^2./(obj.alphapPacked* ...
-                                [obj.Ctop{:, 2}].*[obj.Rtop{2:end, 2}]);
-            % state-space system
-            obj.Atop = spdiags([-(obj.tauTop(:, 1) + obj.tauTop(:, 2)), ...
-                        obj.tauTop(:, 1), obj.tauTop(:, 2)], ...
-                        [0, 1, -1], N, N)';
-            obj.Btop = zeros(N, 1); obj.Btop(1) = obj.tauTop(1, 1);
-            obj.Ctop = [zeros(1, N); eye(N)]; 
-            obj.Ctop(1) = -(obj.T0 - obj.Tinf)/obj.Rtop{1, 2};
-            obj.Dtop = zeros(N+1, 1);
-            obj.Dtop(1) = (obj.T0 - obj.Tinf)/obj.Rtop{1, 2};
-            obj.topSys = ss(full(obj.Atop), obj.Btop, obj.Ctop, obj.Dtop); 
-            % initialize state variables and boundary condition
-            if isempty(obj.thetaTop), obj.thetaTop = zeros(N, 1); end
-            computeTopSys(obj);
-        end
         function initializeBaseSys(obj)
             % computes the linear RC system for the storage tank base
             N = size(obj.baseInsulation, 1); 
@@ -1878,15 +1768,6 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % initialize state variables and boundary condition   
             if isempty(obj.thetaWall), obj.thetaWall = zeros(N, 1); end
         end
-        function y = computeTopSys(obj, u, Fo_)
-            % computes the heat flux leaving the
-            if nargin < 2, u = zeros(2, 1); end
-            if nargin < 3, Fo_ = linspace(0, obj.df, length(u)); end
-            if isempty(obj.qLossT), obj.qLossT = zeros(2, 1); end
-            y = lsim(obj.topSys, u, Fo_, obj.thetaTop);
-            obj.qLossT(1) = obj.qLossT(2); obj.qLossT(2) = y(end, 1); 
-            obj.thetaTop = y(end, 2:end);
-        end
         function y = computeBaseSys(obj, u, Fo_)
             % computes the heat flux leaving the
             if nargin < 2, u = 1; end
@@ -1938,12 +1819,13 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % fits z meshes to be between 0 and ztop, resizing dzbar and
             % dzc accordingly. Adjusts the length according to the time
             % step relative to the set update frequency, modZ.
-            [~, n] = min(abs(obj.FoNow - obj.Fo));
-            if mod(n, obj.modZH) == 0
-                obj.nzH = length(obj.zbarH) + 1; 
-            else
-                obj.nzH = length(obj.zbarH);
-            end
+%             [~, n] = min(abs(obj.FoNow - obj.Fo));
+%             if mod(n, obj.modZH) == 0
+%                 obj.nzH = length(obj.zbarH) + 1; 
+%             else
+%                 obj.nzH = length(obj.zbarH);
+%             end
+            obj.nzH = ceil(obj.nzH0*obj.ztop);
             [obj.zbarH, obj.dzH] = ...
                               nodeGen(obj, [0, obj.ztop], obj.nzH);         
         end
@@ -1951,21 +1833,22 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % fits z meshes to be between 0 and ztop, resizing dzbar and
             % dzc accordingly. Adjusts the length according to the time
             % step relative to the set update frequency, modZ.
-            [~, n] = min(abs(obj.FoNow - obj.Fo));
-            if mod(n, obj.modZS) == 0
-                obj.nzbar = length(obj.zbar) - 1; 
-            else
-                obj.nzbar = length(obj.zbar);
-            end
-            if mod(n, obj.modZC) == 0
-                nzc_ = length(obj.zcenter) - 1;
-            else
-                nzc_ = length(obj.zcenter);
-            end
+%             [~, n] = min(abs(obj.FoNow - obj.Fo));
+%             if mod(n, obj.modZS) == 0
+%                 obj.nzbar = length(obj.zbar) - 1; 
+%             else
+%                 obj.nzbar = length(obj.zbar);
+%             end
+%             if mod(n, obj.modZC) == 0
+%                 nzc_ = length(obj.zcenter) - 1;
+%             else
+%                 nzc_ = length(obj.zcenter);
+%             end
+            obj.nzbar = ceil(obj.nzbar0*obj.ztop);
+            obj.nzc = ceil(obj.nzc0*obj.ztop);
             [obj.zbar, obj.dzbar] = ...
                             nodeGen(obj, [0, obj.ztop], obj.nzbar);
-            obj.zcenter = linspace(0, obj.ztop, nzc_);
-            obj.dzc = obj.zcenter(2);
+            [obj.zcenter, obj.dzc] = nodeGen(obj, [0, obj.ztop], obj.nzc);
             computeWbar(obj);
             computeUbar(obj);            
         end
@@ -2100,48 +1983,6 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                 saveTheta(obj, k_);
             end
         end 
-        function patchThetaK(obj, k_, thetaP)
-            % compiles and saves data cell that contains results for the
-            % simulation that matches Kevin's model 
-            rW_ = []; thetaW_ = []; M = length(obj.rbarW);
-            n = length(obj.zbarW); m = cell(M, 1); thetaWC_ = cell(M, 1);
-            for i = 1:M, m{i} = length(obj.rbarW{i}); end
-            for i = 1:length(obj.thetaW)
-                rW_ = [rW_, obj.rbarW{i}];
-%                 thetaWC_{i} = obj.thetaW{i}((k_-1)*n+1:k_*n, ...
-%                                                  (k_-1)*m{i}+1:k_*m{i});
-                thetaW_ = [thetaW_, obj.thetaW{i}];
-%                 thetaW_ = [thetaW_, thetaWC_{i}];
-            end
-            n = length(obj.zbarW);
-            mp = length(obj.rbarH); mw = length(rW_); m = mp + mw;
-            theta_ = NaN*ones(n, m);
-            % save and reinitialize theta if no more space
-            if mod(k_-1, obj.ls) == 0 && k_ ~= 1
-                saveThetaK(obj, k_-1);
-                obj.theta = {};                
-            end
-            % normalize time step
-            kn_ = mod(k_-1, obj.ls) + 1;
-            % include particle/air temperature
-            theta_(1:n, 1:mp) = thetaP;
-            % include wall temperature
-            theta_(1:n, mp+1:end) = thetaW_;
-            % store data
-            obj.thetaK{kn_, 1} = theta_;
-            obj.thetaK{kn_, 2} = obj.zbarW;
-            obj.thetaK{kn_, 3} = [obj.rbarH, rW_]; 
-            obj.thetaK{kn_, 4} = k_;
-            obj.thetaK{kn_, 5} = obj.Fo(k_);
-            obj.thetaK{kn_, 6} = obj.thetaW;
-            obj.thetaK{kn_, 7} = obj.qWall;
-            obj.thetaK{kn_, 8} = obj.thetaA;
-            obj.thetaK{kn_, 9} = obj.qLossW;
-            % save if last time step
-            if k_ == length(obj.Fo)
-                saveThetaK(obj, k_);
-            end
-        end
         function thetaI_ = computeThetaI(obj, thetaT_, thetaC_, rtop_)
             % computes the average temperature of the top and center flow
             % channel boundaries to set the offset temperature that avoids

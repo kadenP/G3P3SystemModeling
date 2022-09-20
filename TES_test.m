@@ -3,11 +3,11 @@ TES_.T0 = 775;
 
 % setup cycles (time units in seconds)
 chargeDurration = 6*3600;
-holdDurration = 10*3600;
-dischargeDurration = 8*3600;
+holdDurration = 10*3600*0;
+dischargeDurration = 8*3600*0;
 numCycles = 1;
 
-dt = 600;
+dt = 1200;
 t = 0:dt:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
 nc = ceil(chargeDurration/dt);
 nh = ceil(holdDurration/dt);
