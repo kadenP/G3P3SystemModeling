@@ -19,6 +19,7 @@ for i = 1:numCycles
     for j = 1:nCycle
         if j <= nc
             mdot(j + nCycle*(i-1)) = 9;
+            
         elseif j <= nh + nc && j > nc
             mdot(j + nCycle*(i-1)) = 0;                   
         else
