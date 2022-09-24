@@ -4,10 +4,11 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable) 
         Ts0 = 25                    % (°C) initial temperature of particles
+        hInf = 20                   % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
-        rho_s = 3500                % (kg/m3) particle density
+        rho_s = 1810                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction
-        sigma = 2.67e-8             % (W/m2K4) stephan-boltzman constant
+        sigma = 5.67e-8             % (W/m2K4) stephan-boltzman constant
         epsilon_s = 0.88            % emisivity of falling particles
         alpha_s = 0.92              % absorbtivity of falling particles
         H = 1.2                     % (m) height of apperature
@@ -26,6 +27,10 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         Ar                          % (m2) aperature area
         qRad                        % (W) re-radiaded heat from curtain
         Qabs                        % (W) absorbed radiation
+        kappaSol                    % (m2-K/J) solar input coefficient
+        kappaRad                    % (1/s-K3) re-radiation coefficient
+        kappaConv                   % (1/s) convective loss coefficient
+        kappaAdv                    % (1/kg) advective loss coefficient
         
     end
 
@@ -68,7 +73,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
               'PropertyList', {'H', 'W', 'd'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
-              'PropertyList', {'Ts0', 'cp_s', 'rho_s', 'phi_s', 'epsilon_s', ...
+              'PropertyList', {'Ts0', 'hInf', 'cp_s', 'rho_s', 'phi_s', 'epsilon_s', ...
               'alpha_s'});                            
           groups = [group1, group2];    
        end
@@ -83,6 +88,11 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.x0 = obj.Ts0;
             obj.Vr = obj.H*obj.W*obj.d;
             obj.Ar = obj.H*obj.W;
+            obj.kappaSol = obj.alpha_s/(obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
+            obj.kappaRad = 2*obj.epsilon_s*obj.sigma/...
+                                    (obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
+            obj.kappaConv = 2*obj.hInf/(obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
+            obj.kappaAdv = 1/(obj.rho_s*obj.phi_s*obj.Vr);
             
 
         end
@@ -103,25 +113,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.Tinf = Tinf;
             
             % compute temperature at next step
-            Ts_out = stepTempSolution(obj, Ts_in, Qsolar);
-            
-            % calculate mass flow rate required to obtain desired outlet
-            % temperature within error margin
-%             tol = 0.05; err = 1; i = 1;
-%             mdot_ = linspace(6, 10, 10);
-%             while abs(err) > tol
-%                 obj.mdot = mdot_(i);
-%                 Ts_ = stepTempSolution(obj, Ts_in, Qsolar);
-%                 errNew = (Ts_ - Tset)/Tset;
-%                 if sign(errNew) ~= sign(err)
-%                     break;
-%                 end
-%                 err = errNew;
-%                 i = i + 1;
-%             end            
-%             Ts_out = Ts_;
-%             mdot_s_in = obj.mdot;
-%             mdot_s_out = mdot_s_in;
+            Ts_out = stepTempSolution(obj, Ts_in, Qsolar/obj.Ar);          
                                       
             % update time and initial condition
             obj.tNow = obj.tNow + obj.dt;
@@ -169,13 +161,13 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             flag = false;
         end        
         %% model functions
-        function Ts = stepTempSolution(obj, Ts_in, Qsolar)
+        function Ts = stepTempSolution(obj, Ts_in, qsolar)
             % calculates the next lumped temperature solution for the
             % falling particle temperature outlet
-            F_ = @(x) 1/(obj.rho_s*obj.cp_s*obj.Vr)*(obj.alpha_s*Qsolar - ...
-                obj.sigma*obj.epsilon_s*obj.Ar*(x^4 - ...
-                (obj.C2K(obj.Tinf)^4)) - ...
-                obj.mdot*obj.cp_s*(x - obj.C2K(Ts_in)));
+            F_ = @(x) obj.kappaSol*qsolar - ...
+                obj.kappaRad*(x^4 - (obj.C2K(obj.Tinf)^4)) - ...
+                obj.kappaConv*(x - (obj.C2K(obj.Tinf))) - ...
+                obj.kappaAdv*obj.mdot*(x - obj.C2K(Ts_in));
                        
             % implement second order midpoint method to step to next temperature w F_
             beta = 1;

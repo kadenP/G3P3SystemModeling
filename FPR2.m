@@ -6,9 +6,9 @@ classdef FPR2 < matlab.System & matlab.system.mixin.CustomIcon
         Ts0 = 25                    % (°C) initial temperature of particles
         hInf = 20                   % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
-        rho_s = 3500                % (kg/m3) particle density
+        rho_s = 1810                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction
-        sigma = 2.67e-8             % (W/m2K4) stephan-boltzman constant
+        sigma = 5.67e-8             % (W/m2K4) stephan-boltzman constant
         epsilon_s = 0.88            % emisivity of falling particles
         alpha_s = 0.92              % absorbtivity of falling particles
         n = 20                      % number of discretizations in domain
@@ -178,10 +178,10 @@ classdef FPR2 < matlab.System & matlab.system.mixin.CustomIcon
             F_ = @(xi, xim1) obj.kappaSol*qsolar - ...
                 obj.kappaRad*(xi^4 - (obj.C2K(obj.Tinf))^4) - ...
                 obj.kappaConv*(xi - obj.C2K(obj.Tinf)) - ...
-                obj.v_s/obj.delta*(xi - xim1);
+                obj.v_s*(xi - xim1)/obj.delta;
                        
             % implement second order midpoint method to step to next temperature w F_
-            beta = 1;
+            beta = 2/3;
             xK = zeros(obj.n, 1);
             for i = 1:obj.n
                 if i == 1
@@ -197,7 +197,7 @@ classdef FPR2 < matlab.System & matlab.system.mixin.CustomIcon
                         F_(obj.C2K(obj.x0(i)), obj.C2K(obj.x0(i-1))), ...
                         obj.C2K(obj.x0(i-1)) + beta*obj.dt* ...
                         F_(obj.C2K(obj.x0(i-1)), obj.C2K(obj.x0(i-2)))));
-                end                   
+                end  
             end
             x_ = xK - 273.15;                       
         end

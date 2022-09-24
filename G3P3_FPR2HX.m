@@ -17,7 +17,7 @@ clear, clc, close all
 chargeDurration = 6*3600;
 holdDurration = 10*3600;
 dischargeDurration = 8*3600;
-numCycles = 3;
+numCycles = 2;
 
 dt1 = 10;
 t1 = 0:dt1:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
@@ -42,9 +42,8 @@ Qsolar = zeros(length(t1), 1);
 % Inputs: Ts_in, Tinf, mdot_s_in, Qsolar, t
 % Outputs: Ts_out, mdot_s_out
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-FPR_ = FPR2();
+FPR_ = FPR();
 FPR_.Ts0 = 600;
-FPR_.n = 50;
 
 Ts_in_FPR = FPR_.Ts0*ones(length(t1), 1);
 mdot_s_in_FPR = zeros(length(t1), 1);
@@ -223,7 +222,7 @@ for i = iStart1:length(t1)
     sysData1.mdot_CO2_out_HX(i) = sysData1.mdot_CO2_in_HX(i);
     
     % reciever collection limit
-    sysData1.Qsolar(i) = step(HF_, DNI(i));
+%     sysData1.Qsolar(i) = step(HF_, DNI(i));
     
     % intermediate storage diverter valve control
     sysData1.y1_intermediateStorageDiverter(i) = 1; % no flow to cold bin
@@ -232,7 +231,7 @@ for i = iStart1:length(t1)
     sysData1.Ts_in_FPR(i) = 600;
     if hour_day1(i) >= 1 && hour_day1(i) < 9
         sysData1.Qsolar(i) = 0;
-        sysData1.mdot_s_in_FPR(i) = 0;               
+        sysData1.mdot_s_in_FPR(i) = 9;               
         sysData1.mdot_hotTES(i) = -5;
         sysData1.mdot_s_in_hotBinDischarge(i) = 5;        
     elseif hour_day1(i) >= 9 && hour_day1(i) < 15
@@ -242,16 +241,19 @@ for i = iStart1:length(t1)
         sysData1.mdot_s_in_hotBinDischarge(i) = 0;        
     else
         sysData1.Qsolar(i) = 0;
-        sysData1.mdot_s_in_FPR(i) = 0;
+        sysData1.mdot_s_in_FPR(i) = 9;
         sysData1.mdot_hotTES(i) = 0;
         sysData1.mdot_s_in_hotBinDischarge(i) = 0;
     end
     
     % simulate system starting at the falling particle reciever
-    [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i), ...
-        sysData1.Ts_FPR{i}, sysData1.x_FPR{1}] = ...
+%     [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i), ...
+%         sysData1.Ts_FPR{i}, sysData1.x_FPR{1}] = ...
+%         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
+%          sysData1.Qsolar(i), t1(i) - t1(iStart1));
+    [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i)] = ...
         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
-         sysData1.Qsolar(i), t1(i) - t1(iStart1));
+        sysData1.Qsolar(i), t1(i) - t1(iStart1));
      
     sysData1.Ts_in_RecieverDownComer(i) = sysData1.Ts_out_FPR(i);
     sysData1.mdot_s_in_RecieverDownComer(i) = sysData1.mdot_s_out_FPR(i);
@@ -260,7 +262,8 @@ for i = iStart1:length(t1)
         sysData1.Ts_RecieverDownComer{i}, sysData1.Tm_RecieverDownComer{i}, ...
         sysData1.x_RecieverDownComer{i}] = step(RecieverDownComer, ...
         sysData1.Ts_in_RecieverDownComer(i), ...
-        sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));     
+        sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));
+    fprintf('Ts_out_FPR = %1.2f °C\n', sysData1.Ts_out_FPR(i));
 end
 
 % save data table
@@ -270,7 +273,7 @@ save('sysData1.mat', 'sysData1');
 %% simulate storage with low resolution
 
 % load data from receiver operation
-load('sysData1_Winter.mat', 'sysData1')
+% load('sysData1.mat', 'sysData1')
 % load('sysData1_Summer.mat', 'sysData1')
 % load('sysData1_Spring.mat', 'sysData1')
 % load('sysData1_Fall.mat', 'sysData1')
