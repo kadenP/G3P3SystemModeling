@@ -17,7 +17,7 @@ clear, clc, close all
 chargeDurration = 6*3600;
 holdDurration = 10*3600;
 dischargeDurration = 8*3600;
-numCycles = 2;
+numCycles = 7;
 
 dt1 = 10;
 t1 = 0:dt1:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
@@ -59,6 +59,8 @@ x_FPR = cell(length(t1), 1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 hotTES = TES();
 hotTES.T0 = 775;
+TES_.a = 0.065;
+TES_.a0 = 0.065;
 
 Ts_in_hotTES = zeros(length(t2), 1);
 mdot_hotTES = zeros(length(t2), 1);
@@ -169,23 +171,23 @@ sysData2 = table(Ts_in_hotTES, mdot_hotTES, Ts_out_hotTES, Ts_bulk_hotTES, Estor
 weather = readtable('ABQ_Weather_Lookup.xlsx');
 
 % Winter Week (Dec 21 - Dec 28)
-t_h_start = 8497; [~, ti_start] = min(abs(weather.time - t_h_start));
-t_h_end = 8665; [~, ti_end] = min(abs(weather.time - t_h_end));
+% t_h_start = 8497 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
+% t_h_end = 8665 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Spring Week (March 21 - March 28)
-% t_h_start = 2641; [~, ti_start] = min(abs(weather.time - t_h_start));
-% t_h_end = 2809; [~, ti_end] = min(abs(weather.time - t_h_end));
+% t_h_start = 2641 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
+% t_h_end = 2809 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Summer Week (June 21 - June 28)
-% t_h_start = 4105; [~, ti_start] = min(abs(weather.time - t_h_start));
-% t_h_end = 4273; [~, ti_end] = min(abs(weather.time - t_h_end));
+% t_h_start = 4105 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
+% t_h_end = 4273 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Fall Week (September 23 - September 30)
-% t_h_start = 6361; [~, ti_start] = min(abs(weather.time - t_h_start));
-% t_h_end = 6529; [~, ti_end] = min(abs(weather.time - t_h_end));
+t_h_start = 6361 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
+t_h_end = 6529 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 %% Simulate over prescribed time frame
@@ -200,7 +202,8 @@ Tinf2 = zeros(size(t2));
 
 % time for system jump start
 iStart1 = 1;
-[~, iStart2] = min(abs(9*3600 - t2));
+iStart2 = 2;
+% [~, iStart2] = min(abs(9*3600 - t2));
 
 % initialize system parameters
 
@@ -212,7 +215,7 @@ iStart1 = 1;
 for i = iStart1:length(t1)
     
     % load current weather conditions
-    hour_day1(i) = mod(t1(i)/3600, 24);
+    hour_day1(i) = mod(t1(i)/3600, 24) + 9;
     DNI(i) = interp1(weather.time, weather.DNI, t_h_start + t1(i)/3600, 'makima');
     Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
     
@@ -263,7 +266,7 @@ for i = iStart1:length(t1)
         sysData1.x_RecieverDownComer{i}] = step(RecieverDownComer, ...
         sysData1.Ts_in_RecieverDownComer(i), ...
         sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));
-    fprintf('Ts_out_FPR = %1.2f °C\n', sysData1.Ts_out_FPR(i));
+    fprintf('Ts_out_FPR = %1.2f ï¿½C\n', sysData1.Ts_out_FPR(i));
 end
 
 % save data table
@@ -273,7 +276,7 @@ save('sysData1.mat', 'sysData1');
 %% simulate storage with low resolution
 
 % load data from receiver operation
-% load('sysData1.mat', 'sysData1')
+% load('sysData1_Winter.mat', 'sysData1')
 % load('sysData1_Summer.mat', 'sysData1')
 % load('sysData1_Spring.mat', 'sysData1')
 % load('sysData1_Fall.mat', 'sysData1')
@@ -289,6 +292,7 @@ for i = iStart2:length(t2)
     elseif hour_day2(i) >= 9 && hour_day2(i) < 15
         sysData2.mdot_hotTES(i) = 9;       
     else
+        sysData2.mdot_hotTES(i) = 0;
         sysData2.mdot_s_in_hotBinDischarge(i) = 0;
     end
     
@@ -298,7 +302,8 @@ for i = iStart2:length(t2)
     
     [sysData2.Ts_out_hotTES(i), sysData2.Ts_bulk_hotTES(i), sysData2.Estored_hotTES(i), ...
         sysData2.ztop_hotTES(i), sysData2.ms_hotTES(i), sysData2.mdot_s_out_hotTES(i)] = ...
-        step(hotTES, sysData2.Ts_in_hotTES(i), Tinf2(i), sysData2.mdot_hotTES(i), t2(i) - t2(iStart2));    
+        step(hotTES, sysData2.Ts_in_hotTES(i), Tinf2(i), sysData2.mdot_hotTES(i), t2(i) - t2(iStart2));
+    
 end
 
 

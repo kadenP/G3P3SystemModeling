@@ -13,8 +13,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         
         Hp = 7                      % (m) height of prototype bin
         bp = 0.3214                 % inner nondimensional radius of prototype bin
-        a = 0.044                    % inner nondimensional radius at top of center channel
-        a0 = 0.044                   % inner nondimensional radius at outlet
+        a = 0.1; %0.044                    % inner nondimensional radius at top of center channel
+        a0 = 0.1; %0.044                   % inner nondimensional radius at outlet
         h = 0.0011                   % nondimensional height of top flow boundary        
         b = 0.3214                  % inner nondimensional radius
         H_ = 0.1                   % (m) bin height used for numerical computation
@@ -32,7 +32,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         hp3 = 4                     % (W/m2K) center flow channel h
         hp4 = 10                    % (W/m2K) wall overall convection coefficient for prototype bin
         hp5 = 10                    % (W/m2K) free surface h
-        hp5D = 0.2                  % (W/m2K) free surface h for discharge mode
+        hp5D = 5; %0.2                  % (W/m2K) free surface h for discharge mode
         hp5H = 0.2                  % (W/m2K) free surface h for holding mode
         hp5C = 0.1                  % (W/m2K) free surface h for chargeing mode
         hpTop = 5                   % (W/m2K) overall heat transfer coefficient for the top of the bin        
@@ -111,18 +111,18 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         zhat = []               % z-coordinates for calculations in the top boundary       
         zbarH = []              % z-coordinates for 'H' and 'C' computationses
         nzIC = 2000             % number of z-nodes for full z coordinate storage
-        nrIC = 1000             % number of r-nodes for full r coordinate storage
-        nrbar = 600             % number of r-nodes to use for stagnant region
+        nrIC = 2000             % number of r-nodes for full r coordinate storage
+        nrbar = 1000             % number of r-nodes to use for stagnant region
         nrH = 600               % number of r-nodes to use for 'H' and 'C' computations       
         nzbar = 1000            % number of z-nodes to use for stagnant region 
-        nzbar0 = 1000           % max number of z-nodes for stagnant region
+        nzbar0 = 1500           % max number of z-nodes for stagnant region
         nzH = 1000              % number of z-nodes to use for 'H' and 'C' computations
-        nzH0 = 1500             % max number of z-nodes to use for 'H' and 'C' modes
+        nzH0 = 2000             % max number of z-nodes to use for 'H' and 'C' modes
         nzc = 100               % number of nodes to use for center flow channel
-        nzc0 = 100              % max number of z-nodes for center channel
-        nzhat = 25              % number of z-nodes to use for top flow channel
-        nrhat = 50              % number of r-nodes for center channel
-        nrtop = 600             % number of r-nodes in top flow channel
+        nzc0 = 250              % max number of z-nodes for center channel
+        nzhat = 15              % number of z-nodes to use for top flow channel
+        nrhat = 25              % number of r-nodes for center channel
+        nrtop = 100             % number of r-nodes in top flow channel
         nzbarW = 1000           % number of nodes used in zbarW
         nrbarW = {100}          % number of nodes used in rbarW
         z = []                  % z-coordinates for whole domain
@@ -571,6 +571,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             obj.nzH = ceil(obj.nzH0*obj.ztop);
             [obj.zbarH, obj.dzH] = ... 
                         nodeGen(obj, [0, obj.ztop], obj.nzH);
+            obj.nzc = ceil(obj.nzc0*obj.ztop);
             [obj.zcenter, obj.dzc] = nodeGen(obj, [0, obj.ztop], obj.nzc);
             [obj.zhat, obj.dzhat] = nodeGen(obj, [0, obj.h], obj.nzhat);
             obj.z = [obj.zbar0, 1+obj.zhat(2:end)];
@@ -623,7 +624,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             % initialize temperature matrices
-            obj.Tinf = Tinf;
+            obj.Tinf = 0*Tinf;
             obj.df = obj.t2Fo(t, 1) - obj.FoNow;
             obj.dt = obj.Fo2t(obj.df, 0);             
             if obj.FoNow == 0
@@ -755,7 +756,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     obj.ztop = obj.HNow/obj.H_;
                     obj.nzbar = ceil(obj.nzbar0*obj.ztop);
                     [zbar_, obj.dzbar] = nodeGen(obj, [0, obj.ztop], obj.nzbar);
-                    zcenter_ = 0:obj.dzc:obj.ztop;
+                    obj.nzc = ceil(obj.nzc0*obj.ztop);
+                    [obj.zcenter, obj.dzc] = nodeGen(obj, [0, obj.ztop], obj.nzc);
                     % update temperature array
                     move = abs(size(thetaS_, 1) - length(zbar_));
                     movec = abs(size(thetaC_, 1) - length(zcenter_));
