@@ -4,16 +4,16 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable) 
         Ts0 = 25                    % (°C) initial temperature of particles
-        hInf = 20                   % (W/m2K) ambient heat transfer coefficient
+        hInf = 5                   % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
-        rho_s = 1810                % (kg/m3) particle density
+        rho_s = 3500                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction
         sigma = 5.67e-8             % (W/m2K4) stephan-boltzman constant
         epsilon_s = 0.88            % emisivity of falling particles
         alpha_s = 0.92              % absorbtivity of falling particles
         H = 1.2                     % (m) height of apperature
         W = 1.2                     % (m) width of apperature
-        d = 0.0417                  % (m) depth of falling particle curtain       
+        d = 0.0417/6                % (m) depth of falling particle curtain       
     end
 
     % properties that shouldn't be set by user
@@ -89,7 +89,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.Vr = obj.H*obj.W*obj.d;
             obj.Ar = obj.H*obj.W;
             obj.kappaSol = obj.alpha_s/(obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
-            obj.kappaRad = 2*obj.epsilon_s*obj.sigma/...
+            obj.kappaRad = 1*obj.epsilon_s*obj.sigma/...
                                     (obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
             obj.kappaConv = 2*obj.hInf/(obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
             obj.kappaAdv = 1/(obj.rho_s*obj.phi_s*obj.Vr);

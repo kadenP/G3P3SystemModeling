@@ -4,7 +4,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable)       
         n = 20                      % number of discretizations in domain
-        t_s = 0.003                 % (m) solid channel width
+        t_s = 0.006                 % (m) solid channel width
         t_CO2 = 0.001               % (m) CO2 channel width
         t_m = 0.003                 % (m) metal thicknesss
         H = 1.5                     % (m) heat exchanger height
@@ -137,7 +137,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
-                Tm, Q_CO2, x_] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
+                Tm, Q_CO2, Q_s, x_] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
@@ -159,6 +159,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             Ts_out = Ts(end);
             Tco2_out = Tco2(1);
             Q_CO2 = obj.cp_CO2*mdot_CO2_in*(Tco2_out - Tco2_in);
+            Q_s = obj.cp_s*mdot_s_in*(Ts_out - Ts_in);
                       
             % update time
             obj.tNow = obj.tNow + obj.dt;
