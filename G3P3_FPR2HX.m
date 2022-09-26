@@ -171,8 +171,13 @@ sysData2 = table(Ts_in_hotTES, mdot_hotTES, Ts_out_hotTES, Ts_bulk_hotTES, Estor
 weather = readtable('ABQ_Weather_Lookup.xlsx');
 
 % Winter Week (Dec 21 - Dec 28)
+<<<<<<< HEAD
 % t_h_start = 8497 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
 % t_h_end = 8665 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
+=======
+% t_h_start = 8497; [~, ti_start] = min(abs(weather.time - t_h_start));
+% t_h_end = 8665; [~, ti_end] = min(abs(weather.time - t_h_end));
+>>>>>>> 52d3a8bff5549b882f884661eb3d2484a0b9f517
 
 
 % Spring Week (March 21 - March 28)
@@ -186,8 +191,13 @@ weather = readtable('ABQ_Weather_Lookup.xlsx');
 
 
 % Fall Week (September 23 - September 30)
+<<<<<<< HEAD
 t_h_start = 6361 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
 t_h_end = 6529 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
+=======
+t_h_start = 6361; [~, ti_start] = min(abs(weather.time - t_h_start));
+t_h_end = 6529; [~, ti_end] = min(abs(weather.time - t_h_end));
+>>>>>>> 52d3a8bff5549b882f884661eb3d2484a0b9f517
 
 
 %% Simulate over prescribed time frame
@@ -197,6 +207,7 @@ t_h_end = 6529 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 hour_day1 = zeros(size(t1));
 hour_day2 = zeros(size(t2));
 DNI = zeros(size(t1));
+DNIuncert = zeros(size(t1));
 Tinf1 = zeros(size(t1));
 Tinf2 = zeros(size(t2));
 
@@ -217,6 +228,7 @@ for i = iStart1:length(t1)
     % load current weather conditions
     hour_day1(i) = mod(t1(i)/3600, 24) + 9;
     DNI(i) = interp1(weather.time, weather.DNI, t_h_start + t1(i)/3600, 'makima');
+    DNIuncert(i) = interp1(weather.time, weather.DNIuncert, t_h_start + t1(i)/3600, 'makima');
     Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
     
     % set particle-to-sCO2 inlet temperature and flow rate
@@ -254,6 +266,7 @@ for i = iStart1:length(t1)
 %         sysData1.Ts_FPR{i}, sysData1.x_FPR{1}] = ...
 %         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
 %          sysData1.Qsolar(i), t1(i) - t1(iStart1));
+<<<<<<< HEAD
     [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i)] = ...
         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
         sysData1.Qsolar(i), t1(i) - t1(iStart1));
@@ -267,6 +280,21 @@ for i = iStart1:length(t1)
         sysData1.Ts_in_RecieverDownComer(i), ...
         sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));
     fprintf('Ts_out_FPR = %1.2f ï¿½C\n', sysData1.Ts_out_FPR(i));
+=======
+%     [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i)] = ...
+%         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
+%         sysData1.Qsolar(i), t1(i) - t1(iStart1));
+%      
+%     sysData1.Ts_in_RecieverDownComer(i) = sysData1.Ts_out_FPR(i);
+%     sysData1.mdot_s_in_RecieverDownComer(i) = sysData1.mdot_s_out_FPR(i);
+%     
+%     [sysData1.Ts_out_RecieverDownComer(i), sysData1.mdot_s_out_RecieverDownComer(i), ...
+%         sysData1.Ts_RecieverDownComer{i}, sysData1.Tm_RecieverDownComer{i}, ...
+%         sysData1.x_RecieverDownComer{i}] = step(RecieverDownComer, ...
+%         sysData1.Ts_in_RecieverDownComer(i), ...
+%         sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));
+%     fprintf('Ts_out_FPR = %1.2f °C\n', sysData1.Ts_out_FPR(i));
+>>>>>>> 52d3a8bff5549b882f884661eb3d2484a0b9f517
 end
 
 % save data table
