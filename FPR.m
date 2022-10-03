@@ -13,7 +13,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         alpha_s = 0.92              % absorbtivity of falling particles
         H = 1.2                     % (m) height of apperature
         W = 1.2                     % (m) width of apperature
-        d = 0.0417/6                % (m) depth of falling particle curtain       
+        d = 0.0417                % (m) depth of falling particle curtain       
     end
 
     % properties that shouldn't be set by user

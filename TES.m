@@ -13,8 +13,8 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         
         Hp = 7                      % (m) height of prototype bin
         bp = 0.3214                 % inner nondimensional radius of prototype bin
-        a = 0.1; %0.044                    % inner nondimensional radius at top of center channel
-        a0 = 0.1; %0.044                   % inner nondimensional radius at outlet
+        a = 0.044                    % inner nondimensional radius at top of center channel
+        a0 = 0.044                   % inner nondimensional radius at outlet
         h = 0.0011                   % nondimensional height of top flow boundary        
         b = 0.3214                  % inner nondimensional radius
         H_ = 0.1                   % (m) bin height used for numerical computation
@@ -23,7 +23,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         T0 = 800                    % (°C) initial temperature of particles in bin
 %         Tinf = 20                   % (°C) ambient temperature
         Tref = 0                    % (°C) reference temperature 
-        hInf = 10                   % (W/m2K) heat transfer coefficient to surroundings
+        hInf = 20                   % (W/m2K) heat transfer coefficient to surroundings
         hcw = 10                     % (W/m2K) wall-particle boundary contact coefficient
         hcwA = 10                    % (W/m2K) wall-tank air convection coefficient        
         tauW1 = 1.7057e-04          % nondimensional time constant for wall boundary ramp function
@@ -32,7 +32,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         hp3 = 4                     % (W/m2K) center flow channel h
         hp4 = 10                    % (W/m2K) wall overall convection coefficient for prototype bin
         hp5 = 10                    % (W/m2K) free surface h
-        hp5D = 5; %0.2                  % (W/m2K) free surface h for discharge mode
+        hp5D = 0.2                  % (W/m2K) free surface h for discharge mode
         hp5H = 0.2                  % (W/m2K) free surface h for holding mode
         hp5C = 0.1                  % (W/m2K) free surface h for chargeing mode
         hpTop = 5                   % (W/m2K) overall heat transfer coefficient for the top of the bin        
@@ -681,6 +681,7 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     mdot_s_out = 0;
                 case 'C'
                     % run charging simulation
+                    obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
                     if obj.FoModePrev ~= 'C'
                         [IC_, z_, r_] = matchChargeIC(obj, IC_, z_, r_);
                     end
@@ -1308,12 +1309,12 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         function c = FourierCoefficientFD1(obj, beta_)
             % Fourier coefficients
             [~, Rpb] = XFm(obj, obj.b, beta_);
-            C_num = mean(mean(obj.g4))*sin(beta_*obj.ztop)/(beta_*Rpb);
+            C_num = 20*mean(mean(obj.g4))*sin(beta_*obj.ztop)/(beta_*Rpb);
             c = C_num/Nn(obj, beta_);  
         end
         function c = FourierCoefficientFD2(obj, eta_)
             % Fourier coefficients
-            C_num = obj.g2*(besselj(1, eta_*obj.b).* ...
+            C_num = 20*obj.g2*(besselj(1, eta_*obj.b).* ...
                                    (obj.b*bessely(1, eta_*obj.b) - ...
                                     obj.a0*bessely(1, eta_*obj.a0)) - ...
                             bessely(1, eta_*obj.b).* ...
