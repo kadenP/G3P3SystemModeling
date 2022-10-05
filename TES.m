@@ -692,11 +692,11 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
                     obj.thetaCi = (Tin - obj.Tinf)/(obj.T0 - obj.Tinf);
                     % take bulk volumetric average (temporary
                     % approximation)
-                    fz = simpsonIntegrator(obj, z_);
-                    fr = simpsonIntegrator(obj, r_);
-                    Ir = 2*(r_.*IC_)*fr';
-                    theta_bulk = Ir'*fz'./(max(r_)^2*max(z_));
-                    IC_ = theta_bulk*ones(size(IC_));
+%                     fz = simpsonIntegrator(obj, z_);
+%                     fr = simpsonIntegrator(obj, r_);
+%                     Ir = 2*(r_.*IC_)*fr';
+%                     theta_bulk = Ir'*fz'./(max(r_)^2*max(z_));
+%                     IC_ = theta_bulk*ones(size(IC_));
                     resetImpl(obj);
                     obj.Bi5 = obj.Bi5C;
                     % compute charge temperature values for current time step
@@ -1309,12 +1309,12 @@ classdef TES < matlab.System & matlab.system.mixin.CustomIcon
         function c = FourierCoefficientFD1(obj, beta_)
             % Fourier coefficients
             [~, Rpb] = XFm(obj, obj.b, beta_);
-            C_num = 20*mean(mean(obj.g4))*sin(beta_*obj.ztop)/(beta_*Rpb);
+            C_num = mean(mean(obj.g4))*sin(beta_*obj.ztop)/(beta_*Rpb);
             c = C_num/Nn(obj, beta_);  
         end
         function c = FourierCoefficientFD2(obj, eta_)
             % Fourier coefficients
-            C_num = 20*obj.g2*(besselj(1, eta_*obj.b).* ...
+            C_num = obj.g2*(besselj(1, eta_*obj.b).* ...
                                    (obj.b*bessely(1, eta_*obj.b) - ...
                                     obj.a0*bessely(1, eta_*obj.a0)) - ...
                             bessely(1, eta_*obj.b).* ...

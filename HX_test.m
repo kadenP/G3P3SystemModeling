@@ -1,5 +1,3 @@
-
-
 chargeDurration = 6*3600;
 holdDurration = 10*3600;
 dischargeDurration = 8*3600;
