@@ -178,8 +178,8 @@ sysData2 = table(Ts_in_hotTES, mdot_hotTES, Ts_out_hotTES, Ts_bulk_hotTES, Estor
 weather = readtable('ABQ_Weather_Lookup.xlsx');
 
 % Winter Week (Dec 21 - Dec 28)
-t_h_start = 8497 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
-t_h_end = 8665 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
+% t_h_start = 8497 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
+% t_h_end = 8665 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Spring Week (March 21 - March 28)
@@ -188,8 +188,8 @@ t_h_end = 8665 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Summer Week (June 21 - June 28)
-% t_h_start = 4105 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
-% t_h_end = 4273 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
+t_h_start = 4105 + 8; [~, ti_start] = min(abs(weather.time - t_h_start));
+t_h_end = 4273 + 8; [~, ti_end] = min(abs(weather.time - t_h_end));
 
 
 % Fall Week (September 23 - September 30)
@@ -283,60 +283,60 @@ iStart2 = 2;
 %% simulate storage with low resolution
 
 % load data from receiver operation
-load('sysData1_Winter.mat', 'sysData1')
-% load('sysData1_Summer.mat', 'sysData1')
+% load('sysData1_Winter.mat', 'sysData1')
+load('sysData1_Summer.mat', 'sysData1')
 % load('sysData1_Spring.mat', 'sysData1')
 % load('sysData1_Fall.mat', 'sysData1')
 
 
 
-for i = iStart2:length(t2)
-    hour_day2(i) = mod(t_h_start + t2(i)/3600, 24);
-    Tinf2(i) = interp1(weather.time, weather.Tinf, t_h_start + t2(i)/3600, 'makima');
-    
-    if hour_day2(i) >= 1 && hour_day2(i) < 9             
-        sysData2.mdot_hotTES(i) = -5;        
-    elseif hour_day2(i) >= 9 && hour_day2(i) < 15
-        sysData2.mdot_hotTES(i) = 9;       
-    else
-        sysData2.mdot_s_in_hotBinDischarge(i) = 0;
-    end
-    
-    sysData2.Ts_in_hotTES(i) = interp1(t_h_start + t1/3600, sysData1.Ts_out_RecieverDownComer, ...
-        t_h_start + t2(i)/3600, 'makima');
-%     sysData2.Ts_in_hotTES(i) = 775;
-    
-    [sysData2.Ts_out_hotTES(i), sysData2.Ts_bulk_hotTES(i), sysData2.Estored_hotTES(i), ...
-        sysData2.ztop_hotTES(i), sysData2.ms_hotTES(i), sysData2.mdot_s_out_hotTES(i)] = ...
-        step(hotTES, sysData2.Ts_in_hotTES(i), Tinf2(i), sysData2.mdot_hotTES(i), t2(i));    
-end
-
-
-% save data table
-save('sysData2.mat', 'sysData2');
+% for i = iStart2:length(t2)
+%     hour_day2(i) = mod(t_h_start + t2(i)/3600, 24);
+%     Tinf2(i) = interp1(weather.time, weather.Tinf, t_h_start + t2(i)/3600, 'makima');
+%     
+%     if hour_day2(i) >= 1 && hour_day2(i) < 9             
+%         sysData2.mdot_hotTES(i) = -5;        
+%     elseif hour_day2(i) >= 9 && hour_day2(i) < 15
+%         sysData2.mdot_hotTES(i) = 9;       
+%     else
+%         sysData2.mdot_s_in_hotBinDischarge(i) = 0;
+%     end
+%     
+%     sysData2.Ts_in_hotTES(i) = interp1(t_h_start + t1/3600, sysData1.Ts_out_RecieverDownComer, ...
+%         t_h_start + t2(i)/3600, 'makima');
+% %     sysData2.Ts_in_hotTES(i) = 775;
+%     
+%     [sysData2.Ts_out_hotTES(i), sysData2.Ts_bulk_hotTES(i), sysData2.Estored_hotTES(i), ...
+%         sysData2.ztop_hotTES(i), sysData2.ms_hotTES(i), sysData2.mdot_s_out_hotTES(i)] = ...
+%         step(hotTES, sysData2.Ts_in_hotTES(i), Tinf2(i), sysData2.mdot_hotTES(i), t2(i));    
+% end
+% 
+% 
+% % save data table
+% save('sysData2.mat', 'sysData2');
 
 %% simulate heat exchanger with high resolution
 
 % load data from storage operation
-load('sysData2_Winter.mat', 'sysData2')
-% load('sysData2_Summer.mat', 'sysData2')
+% load('sysData2_Winter.mat', 'sysData2')
+load('sysData2_Summer.mat', 'sysData2')
 % load('sysData2_Spring.mat', 'sysData2')
 % load('sysData2_Fall.mat', 'sysData2')
 
 for i = 1:length(t1)
-    hour_day1(i) = mod(t1(i)/3600, 24);
+    hour_day1(i) = mod(t_h_start + t1(i)/3600, 24);
     Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
     
     if hour_day1(i) >= 1 && hour_day1(i) < 9             
         sysData3.mdot_s_in_HotBinDischarge(i) = 5;
-        sysData3.Ts_in_HotBinDischarge(i) = 600;        
+        sysData3.Ts_in_HotBinDischarge(i) = ...
+                interp1(t2, sysData2.Ts_out_hotTES, t1(i), 'makima');               
     elseif hour_day1(i) >= 9 && hour_day1(i) < 15
         sysData3.mdot_s_in_HotBinDischarge(i) = 5;
         sysData3.Ts_in_HotBinDischarge(i) = 600;      
     else
         sysData3.mdot_s_in_HotBinDischarge(i) = 5;
-        sysData3.Ts_in_HotBinDischarge(i) = ...
-                interp1(t2, sysData2.Ts_out_hotTES, t1(i), 'makima');
+        sysData3.Ts_in_HotBinDischarge(i) = 600; 
     end
     
     [sysData3.Ts_out_HotBinDischarge(i), sysData3.mdot_s_out_HotBinDischarge(i), ...
