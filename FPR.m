@@ -4,7 +4,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable) 
         Ts0 = 25                    % (°C) initial temperature of particles
-        hInf = 5                   % (W/m2K) ambient heat transfer coefficient
+        hInf = 5                    % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
         phi_s = 0.6                 % solid volume fraction
@@ -13,7 +13,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         alpha_s = 0.92              % absorbtivity of falling particles
         H = 1.2                     % (m) height of apperature
         W = 1.2                     % (m) width of apperature
-        d = 0.0417                % (m) depth of falling particle curtain       
+        d = 0.0417                  % (m) depth of falling particle curtain       
     end
 
     % properties that shouldn't be set by user
@@ -31,6 +31,27 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         kappaRad                    % (1/s-K3) re-radiation coefficient
         kappaConv                   % (1/s) convective loss coefficient
         kappaAdv                    % (1/kg) advective loss coefficient
+        beta                        % (1/s) linearized state coefficient
+        gamma                       % (1/s) linearized ambient coefficient
+        theta                       % (1/s) linearized inlet coefficient
+        psi                         % (m2-K/J) linearized flux coefficient
+        zeta                        % (K/kg) linearized flow coefficient
+        TsPrime                     % (K) linearized state
+        TinfPrime                   % (K) linearized ambient temperature
+        TinPrime                    % (K) linearized inlet temperature
+        qsPrime                     % (W/m2) linearized flux
+        mdotPrime                   % (kg/s) linearized mass flow rate
+        TsRef                       % (K) reference state
+        TinfRef                     % (K) reference ambient temperature
+        TinRef                      % (K) reference inlet temperature
+        qsRef                       % (W/m2) reference flux (0)
+        mdotRef                     % (kg/s) reference mass flow rate
+        G                           % linearized disturbance vector
+        w                           % linearized disturbance inputs
+        
+        
+        
+        
         
     end
 
@@ -113,7 +134,10 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.Tinf = Tinf;
             
             % compute temperature at next step
-            Ts_out = stepTempSolution(obj, Ts_in, Qsolar/obj.Ar);          
+            Ts_out = stepTempSolution(obj, Ts_in, Qsolar/obj.Ar);
+            
+            % comute temperature at next step with linearized model
+            
                                       
             % update time and initial condition
             obj.tNow = obj.tNow + obj.dt;
@@ -170,13 +194,17 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                 obj.kappaAdv*obj.mdot*(x - obj.C2K(Ts_in));
                        
             % implement second order midpoint method to step to next temperature w F_
-            beta = 1;
+            a = 1;
             TsK = obj.C2K(obj.x0) + ...
-                obj.dt*((1 - 1/(2*beta))*F_(obj.C2K(obj.x0)) + ...
-                1/(2*beta)*F_(obj.C2K(obj.x0) + beta*obj.dt*F_(obj.C2K(obj.x0))));
+                obj.dt*((1 - 1/(2*a))*F_(obj.C2K(obj.x0)) + ...
+                1/(2*a)*F_(obj.C2K(obj.x0) + a*obj.dt*F_(obj.C2K(obj.x0))));
             Ts = TsK - 273.15;
                         
         end
+        function Ts = stepLinTempSolution(obj, Ts_in, qsolar)
+            
+            
+        end     
         function T = C2K(~, TC)
            T = TC + 273.15; 
         end
