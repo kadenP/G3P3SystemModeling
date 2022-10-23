@@ -282,14 +282,14 @@ iStart2 = 2;
 
 %% simulate storage with low resolution
 
-% load data from receiver operation
-% load('sysData1_Winter.mat', 'sysData1')
-load('sysData1_Summer.mat', 'sysData1')
-% load('sysData1_Spring.mat', 'sysData1')
-% load('sysData1_Fall.mat', 'sysData1')
-
-
-
+% % load data from receiver operation
+% % load('sysData1_Winter.mat', 'sysData1')
+% load('sysData1_Summer.mat', 'sysData1')
+% % load('sysData1_Spring.mat', 'sysData1')
+% % load('sysData1_Fall.mat', 'sysData1')
+% 
+% 
+% 
 % for i = iStart2:length(t2)
 %     hour_day2(i) = mod(t_h_start + t2(i)/3600, 24);
 %     Tinf2(i) = interp1(weather.time, weather.Tinf, t_h_start + t2(i)/3600, 'makima');
