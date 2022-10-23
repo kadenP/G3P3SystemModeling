@@ -19,7 +19,7 @@ holdDurration = 10*3600;
 dischargeDurration = 8*3600;
 numCycles = 1;
 
-dt1 = 10;
+dt1 = 1;
 % t1 = 0:dt1:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
 t1 = 0:dt1:3600*2;
 t1 = t1';
@@ -46,6 +46,7 @@ Qsolar = zeros(length(t1), 1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 FPR_ = FPR();
 FPR_.Ts0 = 600;
+FPR_.Tset = 775;
 
 Ts_in_FPR = FPR_.Ts0*ones(length(t1), 1);
 mdot_s_in_FPR = zeros(length(t1), 1);
@@ -264,7 +265,7 @@ for i = iStart1:length(t1)
 %         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
 %          sysData1.Qsolar(i), t1(i) - t1(iStart1));
     [sysData1.Ts_out_FPR(i), Ts_out_lin_FPR(i), sysData1.mdot_s_out_FPR(i)] = ...
-        step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
+        step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), ...
         sysData1.Qsolar(i), t1(i) - t1(iStart1));
      
     sysData1.Ts_in_RecieverDownComer(i) = sysData1.Ts_out_FPR(i);
