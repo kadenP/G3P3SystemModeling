@@ -20,8 +20,8 @@ dischargeDurration = 8*3600;
 numCycles = 1;
 
 dt1 = 1;
-% t1 = 0:dt1:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
-t1 = 0:dt1:3600*2;
+t1 = 0:dt1:(chargeDurration + holdDurration + dischargeDurration)*numCycles;
+% t1 = 0:dt1:3600*2;
 t1 = t1';
 
 dt2 = 1200;
@@ -47,6 +47,9 @@ Qsolar = zeros(length(t1), 1);
 FPR_ = FPR();
 FPR_.Ts0 = 600;
 FPR_.Tset = 775;
+FPR_.tauLag = 1500;
+FPR_.tauLead = 1e-6;
+FPR_.dtLin = 1;
 
 Ts_in_FPR = FPR_.Ts0*ones(length(t1), 1);
 mdot_s_in_FPR = zeros(length(t1), 1);

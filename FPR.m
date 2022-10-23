@@ -3,8 +3,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
 
     % Public, nontunable properties
     properties (Nontunable) 
-        Ts0 = 25                    % (°C) initial temperature of particles
-        Tset = 775                  % (°C) setpoint temperature
+        Ts0 = 25                    % (°C) initial temperature of particles        
         hInf = 5                    % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
@@ -19,11 +18,14 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         TinRef = 600                % (°C) reference inlet temperature
         qsRef = 0                   % (W/m2) reference flux (0)        
         dtLin = 0.5                 % (s) maximum time step for lin model 
+        tauLag = 10                 % (s) lag filter time constant
+        tauLead = 1                 % (s) lead filter time constant
     end
 
     % properties that shouldn't be set by user
     properties (Access = protected) 
         Tinf                        % (°C) ambient temperature (input)
+        Tset                        % (°C) setpoint temperature
         x0                          % (°C) IC for curtain temp
         tNow                        % (s) current time
         dt                          % (s) current time step 
@@ -82,11 +84,12 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name, in3name, in4name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name, in4name, in5name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'Tinf';
           in3name = 'Qsolar';
           in4name = 't';
+          in5name = 'Tset';
         end
         function [out1name, out2name, out3name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
@@ -131,19 +134,25 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, Ts_out_lin, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, Qsolar, t)
+        function [Ts_out, Ts_out_lin, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, Qsolar, t, Tset)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
                         
             % compute variables dependent on inputs
             obj.Tinf = Tinf;
+            obj.Tset = Tset;
             
             % initialize reference state if first instance
             if isempty(obj.TsRef), obj.TsRef = obj.Ts0; end
             
             % generate mass flow control law with linear model
-            [obj.mdot, Ts_out_lin] = setMassFlowRate(obj, Ts_in, Qsolar/obj.Ar);
+            if Qsolar > 0
+                [obj.mdot, Ts_out_lin] = setMassFlowRate(obj, Ts_in, Qsolar/obj.Ar, t);
+            else
+                obj.mdot = 0;
+                Ts_out_lin = obj.Ts0;
+            end
             mdot_s_out = obj.mdot;
             
             % compute temperature at next step
@@ -207,7 +216,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                 obj.kappaAdv*obj.mdot*(x - obj.C2K(Ts_in));
                        
             % implement second order midpoint method to step to next temperature w F_
-            a = 1;
+            a = 0.5;
             TsK = obj.C2K(obj.x0) + ...
                 obj.dt*((1 - 1/(2*a))*F_(obj.C2K(obj.x0)) + ...
                 1/(2*a)*F_(obj.C2K(obj.x0) + a*obj.dt*F_(obj.C2K(obj.x0))));
@@ -268,7 +277,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                 x0_ = Ts;               
             end                                                         
         end  
-        function [mdot_, Ts_out_lin] = setMassFlowRate(obj, Ts_in, qsolar)
+        function [mdot_, Ts_out_lin] = setMassFlowRate(obj, Ts_in, qsolar, tg)
             % uses feedback control to set the mass flow rate according to
             % the current temperature error
             
@@ -301,8 +310,11 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                 
                 % set feedback controller
                 if abs(obj.zeta) > obj.kappaAdv*10
-                    obj.Ky = obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
-                    obj.mdot = obj.mdotRef + obj.Ky*(-obj.x0 + obj.Tset);
+                    Fll = (1 - exp(-(t_(i))/obj.tauLag))/ ...
+                          (1 - exp(-(t_(i))/obj.tauLead));
+                    obj.Ky = Fll*obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
+%                     obj.Ky = -Fll*0.06;
+                    obj.mdot = obj.mdotRef + obj.Ky*(obj.Tset - obj.x0);
                     if obj.mdot <= 0, obj.mdot = 0; end
                     if obj.mdot >= 10, obj.mdot = 10; end
                 end
