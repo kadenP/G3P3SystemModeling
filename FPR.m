@@ -4,6 +4,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
     % Public, nontunable properties
     properties (Nontunable) 
         Ts0 = 25                    % (°C) initial temperature of particles
+        Tset = 775                  % (°C) setpoint temperature
         hInf = 5                    % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
@@ -13,7 +14,11 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         alpha_s = 0.92              % absorbtivity of falling particles
         H = 1.2                     % (m) height of apperature
         W = 1.2                     % (m) width of apperature
-        d = 0.0417                  % (m) depth of falling particle curtain       
+        d = 0.0417                  % (m) depth of falling particle curtain 
+        TinfRef = 0                 % (°C) reference ambient temperature
+        TinRef = 600                % (°C) reference inlet temperature
+        qsRef = 0                   % (W/m2) reference flux (0)        
+        dtLin = 0.5                 % (s) maximum time step for lin model 
     end
 
     % properties that shouldn't be set by user
@@ -41,13 +46,13 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         TinPrime                    % (K) linearized inlet temperature
         qsPrime                     % (W/m2) linearized flux
         mdotPrime                   % (kg/s) linearized mass flow rate
-        TsRef                       % (K) reference state
-        TinfRef                     % (K) reference ambient temperature
-        TinRef                      % (K) reference inlet temperature
-        qsRef                       % (W/m2) reference flux (0)
+        TsRef                       % (K) reference state  
+        F_Ref                       % (°C/s) reference rate
         mdotRef                     % (kg/s) reference mass flow rate
         G                           % linearized disturbance vector
         w                           % linearized disturbance inputs
+        Ky                          % feedback controller
+        ks                          % scaling vector for controller
         
         
         
@@ -77,16 +82,16 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name, in3name, in4name, in5name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name, in4name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'Tinf';
-          in3name = 'mdot_s_in';
-          in4name = 'Qsolar';
-          in5name = 't';
+          in3name = 'Qsolar';
+          in4name = 't';
         end
-        function [out1name, out2name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
-          out2name = 'mdot_s_out';
+          out2name = 'Ts_out_lin';
+          out3name = 'mdot_s_out';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -107,6 +112,8 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             % Perform one-time calculations, such as computing constants 
             obj.tNow = 0;
             obj.x0 = obj.Ts0;
+            obj.mdotRef = 0;
+            obj.mdot = 0;
             obj.Vr = obj.H*obj.W*obj.d;
             obj.Ar = obj.H*obj.W;
             obj.kappaSol = obj.alpha_s/(obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
@@ -114,6 +121,7 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                                     (obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
             obj.kappaConv = 2*obj.hInf/(obj.cp_s*obj.rho_s*obj.phi_s*obj.d);
             obj.kappaAdv = 1/(obj.rho_s*obj.phi_s*obj.Vr);
+            obj.ks = [1, 1, obj.hInf, 1];
             
 
         end
@@ -123,21 +131,26 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, mdot_s_in, Qsolar, t)
+        function [Ts_out, Ts_out_lin, mdot_s_out] = stepImpl(obj, Ts_in, Tinf, Qsolar, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
                         
             % compute variables dependent on inputs
-            mdot_s_out = mdot_s_in;
-            obj.mdot = mdot_s_in;
             obj.Tinf = Tinf;
+            
+            % initialize reference state if first instance
+            if isempty(obj.TsRef), obj.TsRef = obj.Ts0; end
+            
+            % generate mass flow control law with linear model
+            [obj.mdot, Ts_out_lin] = setMassFlowRate(obj, Ts_in, Qsolar/obj.Ar);
+            mdot_s_out = obj.mdot;
             
             % compute temperature at next step
             Ts_out = stepTempSolution(obj, Ts_in, Qsolar/obj.Ar);
-            
-            % comute temperature at next step with linearized model
-            
+                                              
+            % reset the reference state
+            obj.TsRef = Ts_out_lin;
                                       
             % update time and initial condition
             obj.tNow = obj.tNow + obj.dt;
@@ -202,11 +215,132 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                         
         end
         function Ts = stepLinTempSolution(obj, Ts_in, qsolar)
+            % calculates the next lumped temperature solution with the
+            % linearized system model
             
+            % set Jacobian variables;
+            obj.gamma = 4*obj.kappaRad*(obj.C2K(obj.TinfRef))^3 ...
+                        + obj.kappaConv;
+            obj.theta = obj.kappaAdv*obj.mdotRef;
+            obj.psi = obj.kappaSol;
             
-        end     
+            % reduce time step if too large
+            if obj.dt > obj.dtLin
+                t_ = linspace(0, obj.dt, ceil(obj.dt/obj.dtLin));
+                dt_ = t_(2);
+            else
+                t_ = obj.dt; 
+                dt_ = obj.dt;
+            end
+            x0_ = obj.x0;
+            
+            for i = 1:length(t_)           
+                obj.F_Ref = obj.kappaSol*obj.qsRef - ...
+                    obj.kappaRad*((obj.C2K(obj.TsRef))^4 - (obj.C2K(obj.TinfRef)^4)) - ...
+                    obj.kappaConv*(obj.TsRef - obj.TinfRef) - ...
+                    obj.kappaAdv*obj.mdotRef*(obj.TsRef - obj.TinRef);
+
+                % set Jacobian variables
+                obj.beta = -4*obj.kappaRad*(obj.C2K(obj.TsRef))^3 - obj.kappaConv ...
+                            - obj.kappaAdv*obj.mdotRef;
+                obj.zeta = obj.kappaAdv*(obj.TinRef - obj.TsRef);
+
+                % set state-space variables
+                obj.TsPrime = x0_ - obj.TsRef;
+                obj.TinfPrime = obj.Tinf - obj.TinfRef;
+                obj.TinPrime = Ts_in - obj.TinRef;
+                obj.qsPrime = qsolar - obj.qsRef;
+                obj.mdotPrime = obj.mdot - obj.mdotRef;
+                A = obj.beta;
+                B = [obj.zeta, obj.gamma, obj.theta, obj.psi, 1];
+                u = [obj.mdotPrime; obj.TinfPrime; obj.TinPrime; ...
+                    obj.qsPrime; obj.F_Ref];
+                b_ = B*u;
+
+                % step linear model solution
+                Ap = [A, eye(size(A)); zeros(size(A)), zeros(size(A))];
+                xx0 = [obj.TsPrime; b_];               
+                xx = expm(dt_.*Ap)*xx0;
+                Ts = xx(1) + obj.TsRef;
+                
+                % reset interim variables
+                obj.TsRef = x0_;
+                x0_ = Ts;               
+            end                                                         
+        end  
+        function [mdot_, Ts_out_lin] = setMassFlowRate(obj, Ts_in, qsolar)
+            % uses feedback control to set the mass flow rate according to
+            % the current temperature error
+            
+            % set Jacobian variables;
+            obj.gamma = 4*obj.kappaRad*(obj.C2K(obj.TinfRef))^3 ...
+                        + obj.kappaConv;
+            obj.theta = obj.kappaAdv*obj.mdotRef;
+            obj.psi = obj.kappaSol;
+            
+            % reduce time step if too large
+            if obj.dt > obj.dtLin
+                t_ = linspace(0, obj.dt, ceil(obj.dt/obj.dtLin));
+                dt_ = t_(2);
+            else
+                t_ = obj.dt; 
+                dt_ = obj.dt;
+            end
+            x0_ = obj.x0;
+            
+            for i = 1:length(t_)           
+                obj.F_Ref = obj.kappaSol*obj.qsRef - ...
+                    obj.kappaRad*((obj.C2K(obj.TsRef))^4 - (obj.C2K(obj.TinfRef)^4)) - ...
+                    obj.kappaConv*(obj.TsRef - obj.TinfRef) - ...
+                    obj.kappaAdv*obj.mdotRef*(obj.TsRef - obj.TinRef);
+
+                % set Jacobian variables
+                obj.beta = -4*obj.kappaRad*(obj.C2K(obj.TsRef))^3 - obj.kappaConv ...
+                            - obj.kappaAdv*obj.mdotRef;
+                obj.zeta = obj.kappaAdv*(obj.TinRef - obj.TsRef);
+                
+                % set feedback controller
+                if abs(obj.zeta) > obj.kappaAdv*10
+                    obj.Ky = obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
+                    obj.mdot = obj.mdotRef + obj.Ky*(-obj.x0 + obj.Tset);
+                    if obj.mdot <= 0, obj.mdot = 0; end
+                    if obj.mdot >= 10, obj.mdot = 10; end
+                end
+
+                % set state-space variables
+                obj.TsPrime = x0_ - obj.TsRef;
+                obj.TinfPrime = obj.Tinf - obj.TinfRef;
+                obj.TinPrime = Ts_in - obj.TinRef;
+                obj.qsPrime = qsolar - obj.qsRef;
+                obj.mdotPrime = obj.mdot - obj.mdotRef;
+                A = obj.beta;
+                B = [obj.zeta, obj.gamma, obj.theta, obj.psi, 1];
+                u = [obj.mdotPrime; obj.TinfPrime; obj.TinPrime; ...
+                    obj.qsPrime; obj.F_Ref];
+                b_ = B*u;
+
+                % step linear model solution
+                Ap = [A, eye(size(A)); zeros(size(A)), zeros(size(A))];
+                xx0 = [obj.TsPrime; b_];               
+                xx = expm(dt_.*Ap)*xx0;
+                Ts = xx(1) + obj.TsRef;
+                
+                % reset interim variables
+                obj.TsRef = x0_;
+                obj.mdotRef = obj.mdot;
+                x0_ = Ts; 
+                
+                
+            end            
+            
+            % set function outputs
+            mdot_ = obj.mdot;
+            Ts_out_lin = Ts;
+            
+                       
+        end
         function T = C2K(~, TC)
-           T = TC + 273.15; 
+            T = TC + 273.15; 
         end
         
         
