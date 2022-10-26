@@ -1172,7 +1172,7 @@ model FallingParticleReceiverSystem
       FallingParticleReceiverSystem.Components.FreeFallDuct IntermediateStorageDownComer(T_m(fixed = true), h_loss = 0.6, length = 10, perimeter = 0.785, thickness = 0.003) annotation(
         Placement(visible = true, transformation(origin = {60, -30}, extent = {{-10, -10}, {10, 10}}, rotation = -90)));
       Modelica.Blocks.Sources.Constant Zero(k = 0) annotation(
-        Placement(visible = true, transformation(origin = {-170, 210}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+        Placement(visible = true, transformation(origin = {-170, 212}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
       Modelica.Blocks.Continuous.LimPID ReceiverPID(Ti = 600, controllerType = Modelica.Blocks.Types.SimpleController.PI, initType = Modelica.Blocks.Types.Init.NoInit, k = 2, yMax = 12, yMin = 0.00001, y_start = 10) annotation(
         Placement(visible = true, transformation(origin = {-128, 212}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
       Modelica.Blocks.Sources.Constant ReceiverSetPoint(k = 775 + 273.15) annotation(
@@ -1193,7 +1193,7 @@ model FallingParticleReceiverSystem
       connect(ReceiverPID.y, Receiver.MassFlow) annotation(
         Line(points = {{-116, 212}, {2, 212}, {2, 196}, {2, 196}}, color = {0, 0, 127}));
       connect(Zero.y, ReceiverPID.u_s) annotation(
-        Line(points = {{-158, 210}, {-142, 210}, {-142, 212}, {-140, 212}}, color = {0, 0, 127}));
+        Line(points = {{-159, 212}, {-140, 212}}, color = {0, 0, 127}));
       connect(ReceiverSetPoint.y, add1.u1) annotation(
         Line(points = {{-158, 170}, {-134, 170}, {-134, 170}, {-134, 170}}, color = {0, 0, 127}));
       connect(HotBinInlet.ParticleOutlet, HotBin.ParticleInlet) annotation(

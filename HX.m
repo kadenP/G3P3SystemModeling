@@ -28,8 +28,9 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
     properties (Access = protected)  
         tNow                        % (s) current time
         dt                          % (s) current time step
-        v_s                         % (m/s) solid velocity       
-        v_CO2                       % (m/s) CO2 velocity
+        vs                          % (m/s) solid velocity       
+        vCO2                        % (m/s) CO2 velocity
+        u                           % (m/s) velocity inputs
         Q_CO2                       % (W) sCO2 heat addition
         pos                         % (m) position vector
         delta                       % (m) mesh size
@@ -41,7 +42,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         xs0                         % (°C) particle temperature IC
         xCO20                       % (°C) sCO2 temperature IC
         xm0                         % (°C) metal temperature IC
-        u                           % (°C) temperature inputs
+        w                           % (°C) temperature disturbance inputs
         Ts_in                       % (°C) particle inlet temperature
         Tco2_in                     % (°C) sCO2 inlet temperature
         A                           % (1/s) 3nx3n state matrix
@@ -55,7 +56,40 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         kappa_CO2                   % (1/s) sCO2 kinematic coefficient
         kappa_ms                    % (1/s) metal-s kinematic coefficient
         kappa_mCO2                  % (1/s) metal-sCO2 kinematic coefficient
-        
+        xsRef                       % (°C) particle state reference
+        xCO2Ref                     % (°C) CO2 state reference
+        xmRef                       % (°C) metal state reference
+        xRef                        % (°C) state reference
+        x0Ref                       % (°C) initial state reference
+        vsRef                       % (m/s) solid velocity reference
+        vCO2Ref                     % (m/s) CO2 velocity reference
+        uRef                        % (m/s) velocity input reference
+        Ts_in_Ref                   % (°C) solids inlet temp reference
+        Tco2_in_Ref                 % (°C) CO2 inlet temp reference
+        fRef                        % (°C/s) state rate reference
+        wRef                        % disturbance input reference
+        xsPrime                     % (°C) particle state reference
+        xCO2Prime                   % (°C) CO2 state reference
+        xmPrime                     % (°C) metal state reference
+        xPrime                      % (°C) state reference
+        x0Prime                     % (°C) state reference
+        vsPrime                     % (m/s) solid velocity reference
+        vCO2Prime                   % (m/s) CO2 velocity reference
+        uPrime                      % (m/s) velocity input reference
+        Ts_in_Prime                 % (°C) solids inlet temp reference
+        Tco2_in_Prime               % (°C) CO2 inlet temp reference
+        fPrime                      % (°C/s) state rate reference
+        wPrime                      % disturbance input reference
+        Jxs                         % linearized nx3n solid state matrix
+        JxCO2                       % linearized nx3n CO2 state matrix
+        Jxm                         % linearized nx3n metal state matrix
+        Jx                          % linearized 3nx3n state matrix
+        Jus                         % linearized 3nx1 solid input matrix
+        JuCO2                       % linearized 3nx1 CO2 input matrix
+        Ju                          % linearized 3nx2 input matrix
+        Jws                         % linearized 3nx1 solid dist. matrix 
+        JwCO2                       % linearized 3nx1 CO2 dist. matrix 
+        Jw                          % linearized 3nx3 dist. matrix 
     end
 
     % Pre-computed constants
@@ -128,6 +162,13 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             obj.kappa_mCO2 = obj.h_CO2/(obj.cp_m*obj.rho_m*obj.t_m);
             obj.delta = obj.H/(obj.n-2);
             obj.pos = linspace(0, obj.H, obj.n);
+            obj.xRef = obj.x0;
+            obj.x0Ref = obj.x0;
+            obj.xsRef = obj.xs0;
+            obj.xCO2Ref = obj.xCO20;
+            obj.xmRef = obj.xm0;
+            obj.Ts_in_Ref = obj.Ts0;
+            obj.Tco2_in_Ref = obj.Tco20;
 
         end
         function resetImpl(obj)
@@ -137,29 +178,43 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
-                Tm, Q_CO2, Q_s, x_] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
+                Tm, Q_CO2, Q_s, x_, Ts_out_lin, Tco2_out_lin] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
             x_ = obj.pos;
-                        
+                                   
             % compute variables dependent on inputs
             mdot_s_out = mdot_s_in;
             mdot_CO2_out = mdot_CO2_in;
-            obj.v_s = mdot_s_in/ ...
+            obj.vs = mdot_s_in/ ...
                       (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);     
-            obj.v_CO2 = mdot_CO2_in/ ...
+            obj.vCO2 = mdot_CO2_in/ ...
                       (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
                   
-            % construct linear system matrices and iterate
+            % compute reference inputs
+            if isempty(obj.vsRef), obj.vsRef = obj.vs; end
+            if isempty(obj.vCO2Ref), obj.vCO2Ref = obj.vCO2; end
+                  
+            % construct system matrices and iterate
             buildSystemMatrices(obj);
             [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, obj.dt);
+            
+            % construct linearized system matrices and iterate
+            buildLinSystemMatrices(obj);
+            [Ts_lin, Tco2_lin, Tm_lin] = iterateLinTemps(obj, Ts_in, Tco2_in, obj.dt);
+            Ts_out_lin = Ts_lin(end);
+            Tco2_out_lin = Tco2_lin(1);
             
             % calculate remaining outputs
             Ts_out = Ts(end);
             Tco2_out = Tco2(1);
             Q_CO2 = obj.cp_CO2*mdot_CO2_in*(Tco2_out - Tco2_in);
             Q_s = obj.cp_s*mdot_s_in*(Ts_out - Ts_in);
+            
+            % set new linearization variables
+            obj.Ts_in_Ref = Ts_in;
+            obj.Tco2_in_Ref = Tco2_in;
                       
             % update time
             obj.tNow = obj.tNow + obj.dt;
@@ -211,15 +266,15 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % system matrices to compute the state variables for the next
             % time step
             % particle temperature equations
-            Omega1 = obj.v_s/obj.delta;
-            Omega2 = -(obj.v_s/obj.delta + 2*obj.kappa_s);
+            Omega1 = obj.vs/obj.delta;
+            Omega2 = -(obj.vs/obj.delta + 2*obj.kappa_s);
             Omega3 = 2*obj.kappa_s;
             obj.As = spdiags([Omega1*ones(obj.n, 1), ...
                 Omega2*ones(obj.n, 1), Omega3*ones(obj.n, 1)], [-1, 0, 2*obj.n], obj.n, 3*obj.n); 
             obj.Bs = zeros(3*obj.n, 1); obj.Bs(1) = Omega1;
             % sCO2 temperature equations
-            Phi1 = -(obj.v_CO2/obj.delta + 2*obj.kappa_CO2);
-            Phi2 = obj.v_CO2/obj.delta;
+            Phi1 = -(obj.vCO2/obj.delta + 2*obj.kappa_CO2);
+            Phi2 = obj.vCO2/obj.delta;
             Phi3 = 2*obj.kappa_CO2;
             obj.Aco2 = spdiags([Phi1*ones(obj.n, 1), ...
                 Phi2*ones(obj.n, 1), Phi3*ones(obj.n, 1)], [obj.n, obj.n+1, 2*obj.n], obj.n, 3*obj.n);
@@ -235,13 +290,50 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             obj.A = [obj.As; obj.Aco2; obj.Am];
             obj.B = [obj.Bs, obj.Bco2];            
         end
+        function buildLinSystemMatrices(obj)
+            % uses the current system parameters to construct the linear
+            % system matrices to compute the state variables for the next
+            % time step
+            % particle temperature equations
+            Omega1Ref = obj.vsRef/obj.delta;
+            Omega2Ref = -(obj.vsRef/obj.delta + 2*obj.kappa_s);
+            Omega3Ref = 2*obj.kappa_s;
+            obj.Jxs = spdiags([Omega1Ref*ones(obj.n, 1), ...
+                Omega2Ref*ones(obj.n, 1), Omega3Ref*ones(obj.n, 1)], ...
+                [-1, 0, 2*obj.n], obj.n, 3*obj.n); 
+            obj.Jus = [0; (obj.xsRef(1:end-1) - obj.xsRef(2:end))/obj.delta; ...
+                        zeros(2*obj.n, 1)];
+            obj.Jws = zeros(3*obj.n, 1); obj.Jws(1) = Omega1Ref;
+            % sCO2 temperature equations
+            Phi1Ref = -(obj.vCO2Ref/obj.delta + 2*obj.kappa_CO2);
+            Phi2Ref = obj.vCO2Ref/obj.delta;
+            Phi3Ref = 2*obj.kappa_CO2;
+            obj.JxCO2 = spdiags([Phi1Ref*ones(obj.n, 1), ...
+                Phi2Ref*ones(obj.n, 1), Phi3Ref*ones(obj.n, 1)], ...
+                [obj.n, obj.n+1, 2*obj.n], obj.n, 3*obj.n);
+            obj.JxCO2(obj.n, 2*obj.n+1) = 0; % hold for sCO2 inlet temp
+            obj.JuCO2 = [zeros(obj.n, 1); (obj.xCO2Ref(1:end-1) - ...
+                       obj.xCO2Ref(2:end))/obj.delta; 0; zeros(obj.n, 1)];
+            obj.JwCO2 = zeros(3*obj.n, 1); obj.JwCO2(2*obj.n) = Phi2Ref;            
+            % metal temperature equations
+            Lambda1Ref = obj.kappa_ms;
+            Lambda2Ref = obj.kappa_mCO2;
+            Lambda3Ref = -(obj.kappa_ms + obj.kappa_mCO2);
+            obj.Jxm = spdiags([Lambda1Ref*ones(obj.n, 1), ...
+                Lambda2Ref*ones(obj.n, 1), Lambda3Ref*ones(obj.n, 1)], ...
+                [0, obj.n, 2*obj.n], obj.n, 3*obj.n);
+            % full state and input matrices
+            obj.Jx = [obj.Jxs; obj.JxCO2; obj.Jxm];
+            obj.Ju = [obj.Jus, obj.JuCO2];
+            obj.Jw = [obj.Jws, obj.JwCO2, eye(3*obj.n)];            
+        end
         function [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, t)
             % uses the developed semi-discrete heat exchanger model to
             % compute new temperatures for the particles, sCO2, and metal
             % throughout the heat exchanger.
             % first reformulate as linear system with constant input
-            u_ = [Ts_in; Tco2_in];
-            b_ = obj.B*u_;
+            w_ = [Ts_in; Tco2_in];
+            b_ = obj.B*w_;
             Ap = [obj.A, eye(3*obj.n); zeros(3*obj.n), zeros(3*obj.n)];
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
@@ -259,7 +351,52 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             Ts = obj.xs;
             Tco2 = obj.xCO2;
             Tm = obj.xm;            
-        end      
+        end  
+        function [Ts, Tco2, Tm] = iterateLinTemps(obj, Ts_in, Tco2_in, t)
+            % computes particle, sCO2, and metal temperatures using the
+            % linearized model (where velocities are treated as inputs)
+            % compute reference ramp function
+            obj.fRef = obj.A*obj.xRef + obj.B*[obj.Ts_in_Ref; obj.Tco2_in_Ref];
+            % compute differences from reference
+            obj.x0Prime = obj.x0 - obj.x0Ref;
+            obj.vsPrime = obj.vs - obj.vsRef;
+            obj.vCO2Prime = obj.vCO2 - obj.vCO2Ref;
+            obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
+            obj.Tco2_in_Prime = Tco2_in - obj.Tco2_in_Ref;
+            % reformulate as linear system with constant inputs
+            u_ = [obj.vsPrime; obj.vCO2Prime];
+            w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
+            b_ = obj.Ju*u_ + obj.Jw*w_;
+            Ap = [obj.Jx, eye(3*obj.n); zeros(3*obj.n), zeros(3*obj.n)];
+            xx0 = [obj.x0Prime; b_];               
+            xx = expm(t*Ap)*xx0;
+            % deconstruct to obtain desired solution
+            obj.xPrime = xx(1:3*obj.n);
+            obj.xsPrime = obj.xPrime(1:obj.n);
+            obj.xCO2Prime = obj.xPrime(obj.n+1:2*obj.n);
+            obj.xmPrime = obj.xPrime(2*obj.n+1:3*obj.n);
+            obj.x = obj.xPrime + obj.xRef;
+            obj.xs = obj.x(1:obj.n);
+            obj.xCO2 = obj.x(obj.n+1:2*obj.n);
+            obj.xm = obj.x(2*obj.n+1:3*obj.n);
+            % reset linearization parameters
+            obj.xRef = obj.x0;
+            obj.xsRef = obj.xs0;
+            obj.xCO2Ref = obj.xCO20;
+            obj.xmRef = obj.xm0;
+            % reset initial conditions
+            obj.x0 = obj.x;
+            obj.xs0 = obj.xs;
+            obj.xCO20 = obj.xCO2;
+            obj.xm0 = obj.xm;  
+            % assign solution to physical parameters
+            Ts = obj.xs;
+            Tco2 = obj.xCO2;
+            Tm = obj.xm;
+            
+            
+            
+        end
                   
     end
 end
