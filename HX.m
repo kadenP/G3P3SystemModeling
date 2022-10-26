@@ -178,23 +178,33 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
-                Tm, Q_CO2, Q_s, x_, Ts_out_lin, Tco2_out_lin] = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
+                Tm, Q_CO2, Q_s, x_, Ts_out_lin, Tco2_out_lin] ...
+                = stepImpl(obj, Ts_in, Tco2_in, Ts_out_set, ...
+                Tco2_out_set, t, mdot_s_in, mdot_CO2_in)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
             x_ = obj.pos;
-                                   
-            % compute variables dependent on inputs
-            mdot_s_out = mdot_s_in;
-            mdot_CO2_out = mdot_CO2_in;
-            obj.vs = mdot_s_in/ ...
-                      (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);     
-            obj.vCO2 = mdot_CO2_in/ ...
-                      (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
-                  
+            
             % compute reference inputs
-            if isempty(obj.vsRef), obj.vsRef = obj.vs; end
-            if isempty(obj.vCO2Ref), obj.vCO2Ref = obj.vCO2; end
+            if isempty(obj.vsRef), obj.vsRef = 0; end
+            if isempty(obj.vCO2Ref), obj.vCO2Ref = 0; end 
+            
+            % compute velocities
+            if ~isempty(mdot_s_in) && ~isempty(mdot_CO2_in)
+                % uses prescribed mass flow rate
+                mdot_s_out = mdot_s_in;
+                mdot_CO2_out = mdot_CO2_in;
+                obj.vs = mdot_s_in/ ...
+                      (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                obj.vCO2 = mdot_CO2_in/ ...
+                      (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
+            else
+                % set mass flow rates based on setpoint
+                
+            end
+                  
+            
                   
             % construct system matrices and iterate
             buildSystemMatrices(obj);
@@ -215,6 +225,20 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % set new linearization variables
             obj.Ts_in_Ref = Ts_in;
             obj.Tco2_in_Ref = Tco2_in;
+            obj.vsRef = obj.vs;
+            obj.vCO2Ref = obj.vCO2;
+            
+            % reset initial conditions
+            obj.x0 = obj.x;
+            obj.xs0 = obj.xs;
+            obj.xCO20 = obj.xCO2;
+            obj.xm0 = obj.xm; 
+            
+            % reset linearization parameters
+            obj.xRef = obj.x0;
+            obj.xsRef = obj.xs0;
+            obj.xCO2Ref = obj.xCO20;
+            obj.xmRef = obj.xm0;
                       
             % update time
             obj.tNow = obj.tNow + obj.dt;
@@ -341,12 +365,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             obj.x = xx(1:3*obj.n);
             obj.xs = obj.x(1:obj.n);
             obj.xCO2 = obj.x(obj.n+1:2*obj.n);
-            obj.xm = obj.x(2*obj.n+1:3*obj.n);
-            % reset initial conditions
-            obj.x0 = obj.x;
-            obj.xs0 = obj.xs;
-            obj.xCO20 = obj.xCO2;
-            obj.xm0 = obj.xm;  
+            obj.xm = obj.x(2*obj.n+1:3*obj.n);           
             % assign solution to physical parameters
             Ts = obj.xs;
             Tco2 = obj.xCO2;
@@ -358,7 +377,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % compute reference ramp function
             obj.fRef = obj.A*obj.xRef + obj.B*[obj.Ts_in_Ref; obj.Tco2_in_Ref];
             % compute differences from reference
-            obj.x0Prime = obj.x0 - obj.x0Ref;
+            obj.x0Prime = obj.x0 - obj.xRef;
             obj.vsPrime = obj.vs - obj.vsRef;
             obj.vCO2Prime = obj.vCO2 - obj.vCO2Ref;
             obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
@@ -375,24 +394,14 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             obj.xsPrime = obj.xPrime(1:obj.n);
             obj.xCO2Prime = obj.xPrime(obj.n+1:2*obj.n);
             obj.xmPrime = obj.xPrime(2*obj.n+1:3*obj.n);
-            obj.x = obj.xPrime + obj.xRef;
-            obj.xs = obj.x(1:obj.n);
-            obj.xCO2 = obj.x(obj.n+1:2*obj.n);
-            obj.xm = obj.x(2*obj.n+1:3*obj.n);
-            % reset linearization parameters
-            obj.xRef = obj.x0;
-            obj.xsRef = obj.xs0;
-            obj.xCO2Ref = obj.xCO20;
-            obj.xmRef = obj.xm0;
-            % reset initial conditions
-            obj.x0 = obj.x;
-            obj.xs0 = obj.xs;
-            obj.xCO20 = obj.xCO2;
-            obj.xm0 = obj.xm;  
+            x_ = obj.xPrime + obj.xRef;
+            xs_ = x_(1:obj.n);
+            xCO2_ = x_(obj.n+1:2*obj.n);
+            xm_ = x_(2*obj.n+1:3*obj.n);            
             % assign solution to physical parameters
-            Ts = obj.xs;
-            Tco2 = obj.xCO2;
-            Tm = obj.xm;
+            Ts = xs_;
+            Tco2 = xCO2_;
+            Tm = xm_;
             
             
             
