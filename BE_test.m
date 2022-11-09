@@ -2,8 +2,10 @@ BE_ = BE();
 BE_.n = 30;
 t = 0:60:3600*8;
 BE_.H = 12.192;
-BE_.W = 1.2192/4;
-BE_.L = 0.381/4;
+BE_.W = 1.2192/17.25;
+BE_.L = 0.381/17.25;
+BE_.hinf = 10;
+BE_.hsw = 1e6;
 
 % ramp inlet temperature
 tauR = 30*60;
@@ -14,7 +16,7 @@ Ts_in = Tin_(t);
 
 % Ts_in = 600;
 
-vs = 0.5;
+vs = 0.1;
 mdot_s_in = vs*BE_.W*BE_.L*BE_.rho_s*BE_.phi_s;
 Ts_out = zeros(size(t)); Ts_out(1) = BE_.Ts0;
 mdot_s_out = zeros(size(t)); mdot_s_out(1) = mdot_s_in;

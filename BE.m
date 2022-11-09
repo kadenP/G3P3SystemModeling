@@ -113,8 +113,8 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             obj.P1 = 2*obj.W + 2*obj.L;
             obj.P2 = 2*(obj.W + obj.tm) + 2*(obj.L + obj.tm);
             obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
-            obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
-            obj.Mminf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);
+            obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm*17.25^2);
+            obj.Mminf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm*17.25^2);
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
