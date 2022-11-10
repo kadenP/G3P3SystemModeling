@@ -6,16 +6,19 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
         n = 100                     % number of discretizations in domain
         W = 1                       % (m) elevator case width
         L = 2                       % (m) elevator case length
+        Wb = 1/17.25                % (m) bucket case width
+        Lb = 2/17.25                % (m) bucket case length
         H = 50                      % (m) elevator case height
         tm = 0.006                  % (m) elevator case thickness
-        Ts0 = 25                    % (°C) initial temperature of particles
-        Tm0 = 25                    % (°C) initial temperature of metal
+        Ts0 = 20                    % (°C) initial temperature of particles
+        Tm0 = 20                    % (°C) initial temperature of metal
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density       
         phi_s = 0.6                 % solid volume fraction
         cp_m = 500                  % (J/kgK) metal specific heat
         rho_m = 8000                % (kg/m3) metal density 
-        hinf = 10                   % (W/m2K) ambient convection coefficient    
+        hinf = 10                   % (W/m2K) ambient convection coefficient  
+        wallInsulation              % elevator wall insulation info
         hsw = 180                   % (W/m2K) solid-to-wall convection coefficient
     end
 
@@ -46,6 +49,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
         Ms                          % (1/s) solid kinematic coefficient
         Msm                         % (1/s) solid-metal kinematic coefficient
         Mminf                       % (1/s) metal-ambient kinematic coefficient
+        Uinf                        % (W/m2K) overal ambient h.t. coefficient
         
     end
 
@@ -102,19 +106,20 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
         %% Common functions
         function setupImpl(obj)
             % Perform one-time calculations, such as computing constants 
+            computeUinf(obj);
             obj.tNow = 0;
             obj.xs0 = obj.Ts0*ones(obj.n, 1);
             obj.xm0 = obj.Tm0*ones(obj.n, 1);
             obj.x0 = [obj.xs0; obj.xm0];
             obj.delta = obj.H/(obj.n-2);
             obj.pos = linspace(0, obj.H, obj.n);
-            obj.Acs = obj.W*obj.L;
+            obj.Acs = obj.Wb*obj.Lb;
             obj.Acm = (obj.W + obj.tm)*(obj.L + obj.tm) - obj.W*obj.L;
-            obj.P1 = 2*obj.W + 2*obj.L;
+            obj.P1 = 2*obj.Wb + 2*obj.Lb;
             obj.P2 = 2*(obj.W + obj.tm) + 2*(obj.L + obj.tm);
             obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
-            obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm*17.25^2);
-            obj.Mminf = obj.hinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm*17.25^2);
+            obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
+            obj.Mminf = obj.Uinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);  
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -122,7 +127,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, mdot_s_out, Ts, Tm, x_] = ...
+        function [Ts_out, mdot_s_out, Ts, Tm, x_, qLoss] = ...
                 stepImpl(obj, Ts_in, mdot_s_in, Tinf, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
@@ -139,6 +144,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             
             % calculate remaining outputs
             Ts_out = Ts(end);
+            qLoss = mdot_s_in*obj.cp_s*(Ts_in - Ts_out)/1000;
                       
             % update time
             obj.tNow = obj.tNow + obj.dt;
@@ -227,6 +233,21 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             % assign solution to physical parameters
             Ts = obj.xs;
             Tm = obj.xm;            
-        end                                               
+        end  
+        function computeUinf(obj)
+            % computes the overall heat transfer coefficient with the
+            % available insulation information
+            N  = size(obj.wallInsulation{:, 1});
+            Rtot = 0;
+            for i = 1:N
+                x1 = obj.wallInsulation{i, 2}(1);
+                x2 = obj.wallInsulation{i, 2}(2);
+                ki = obj.wallInsulation{i, 3};
+                Rtot = Rtot + (x2 - x1)/ki;                               
+            end
+            % add convection
+            Rtot = Rtot + 1/obj.hinf;
+            obj.Uinf = 1/Rtot;                                               
+        end
     end
 end

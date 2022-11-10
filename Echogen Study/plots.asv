@@ -1,0 +1,14 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Plots used for Echogen study
+% Kaden Plewe
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+clear, clc, close all
+
+%% load simulation data
+t = load('time.mat'); t = t.t;
+Ts_in = load('Ts_in.mat'); Ts_in = Ts_in.Ts_in;
+Ts_out_1 = load('Ts_in.mat'); Ts_in = Ts_in.Ts_in;
+
+
+
