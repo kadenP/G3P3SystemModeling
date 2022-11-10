@@ -27,5 +27,5 @@ plot(t/3600, Ts_out_3, '-', 'Color', [0.8500 0.9*0.3250 0.0980], 'LineWidth', 1.
 plot(t/3600, Ts_out_4, '-', 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 1.5);
 
 ylabel('$T$ ($^\circ C$)', 'interpreter', 'latex', 'FontSize', 14);
-xlabel('$t$ ($h$)');
+xlabel('$t$ ($h$)', 'interpreter', 'latex', 'FontSize', 14);
 

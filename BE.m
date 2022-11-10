@@ -114,7 +114,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             obj.delta = obj.H/(obj.n-2);
             obj.pos = linspace(0, obj.H, obj.n);
             obj.Acs = obj.Wb*obj.Lb;
-            obj.Acm = (obj.W + obj.tm)*(obj.L + obj.tm) - obj.W*obj.L;
+            obj.Acm = (obj.Wb + obj.tm)*(obj.Lb + obj.tm) - obj.Wb*obj.Lb;
             obj.P1 = 2*obj.Wb + 2*obj.Lb;
             obj.P2 = 2*(obj.W + obj.tm) + 2*(obj.L + obj.tm);
             obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
