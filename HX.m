@@ -122,7 +122,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           in5name = 't';
         end
         function [out1name, out2name, out3name, out4name, out5name, ...
-                  out6name, out7name, out8name, out9name] = getOutputNamesImpl(~)
+                  out6name, out7name, out8name, out9name, out10name, ...
+                  out11name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'Tco2_out';
           out3name = 'mdot_s_out';
@@ -132,6 +133,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           out7name = 'Tm';
           out8name = 'Q_CO2';
           out9name = 'x';
+          out10name = 'Ts_out_lin';
+          out11name = 'Tco2_out_lin';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -179,8 +182,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         end
         function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
                 Tm, Q_CO2, Q_s, x_, Ts_out_lin, Tco2_out_lin] ...
-                = stepImpl(obj, Ts_in, Tco2_in, Ts_out_set, ...
-                Tco2_out_set, t, mdot_s_in, mdot_CO2_in)
+                = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
@@ -405,6 +407,44 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             
             
             
+        end
+        function [mdot_s, mdot_co2] = setMassFlowRate(obj, Ts_in, Tco2_in, tg)
+            % uses feedback and feedforward control to set the mass flow 
+            % rates according to the current temperature error
+            
+            % set Jacobian variables
+           
+            
+            % set state-space variables
+                                         
+
+            % set feedback and feedforward controller
+            if abs(obj.zeta) > obj.kappaAdv*10
+                % feedforward signal computed for steady state condition
+                mdot_ff = -1/obj.zeta*(obj.beta*(obj.Tset - obj.TsRef) + ...
+                                    obj.gamma*obj.TinfPrime + ...
+                                    obj.theta*obj.TinPrime + ...
+                                    obj.psi*obj.qsPrime + obj.F_Ref) + obj.mdotRef;
+                
+                % feedback signal with lead-lag compensation               
+                Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
+                      (1 - exp(-(tg)/obj.tauLead));
+                obj.Ky = Fll*obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
+%                     obj.Ky = -Fll*0.06;
+                mdot_fb = obj.mdotRef + obj.Ky*(obj.Tset - obj.x0); 
+                
+                % feedback and feedforward signals combined with weighting
+                wff = 0.5;
+                obj.mdot = wff*mdot_ff + (1 - wff)*mdot_fb;
+            end            
+            
+            % limiting conditions
+            if obj.mdot <= 0, obj.mdot = 0; end
+            if obj.mdot >= 10, obj.mdot = 10; end                      
+                                                       
+            % set function outputs
+            mdot_ = obj.mdot;            
+                       
         end
                   
     end

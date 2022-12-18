@@ -93,7 +93,6 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         end
         function [out1name, out2name, out3name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
-          out2name = 'Ts_out_lin';
           out3name = 'mdot_s_out';
         end   
         function groups = getPropertyGroupsImpl
@@ -301,58 +300,31 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             obj.TsPrime = obj.x0 - obj.TsRef;
             obj.TinfPrime = obj.Tinf - obj.TinfRef;
             obj.TinPrime = Ts_in - obj.TinRef;
-            obj.qsPrime = qsolar - obj.qsRef;
-            
-            % set feedforward controller
-
-                                
+            obj.qsPrime = qsolar - obj.qsRef;                                         
 
             % set feedback and feedforward controller
             if abs(obj.zeta) > obj.kappaAdv*10
-%                 mdot_ff = 1/obj.zeta*(1/(obj.beta*obj.)*log((obj.Tset - ...
-%                                     obj.TsRef)/(obj.x0 - obj.TsRef)) - ...
-%                                     obj.gamma*obj.TinfPrime - ...
-%                                     obj.theta*obj.TinPrime - ...
-%                                     obj.psi*obj.qsPrime - obj.F_Ref) + obj.mdotRef;
-                
+                % feedforward signal computed for steady state condition
                 mdot_ff = -1/obj.zeta*(obj.beta*(obj.Tset - obj.TsRef) + ...
                                     obj.gamma*obj.TinfPrime + ...
                                     obj.theta*obj.TinPrime + ...
                                     obj.psi*obj.qsPrime + obj.F_Ref) + obj.mdotRef;
                 
-                               
+                % feedback signal with lead-lag compensation               
                 Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
                       (1 - exp(-(tg)/obj.tauLead));
                 obj.Ky = Fll*obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
 %                     obj.Ky = -Fll*0.06;
                 mdot_fb = obj.mdotRef + obj.Ky*(obj.Tset - obj.x0); 
                 
-                wff = 0.35;
-                obj.mdot = (1 - wff)*mdot_ff + wff*mdot_fb;
-
+                % feedback and feedforward signals combined with weighting
+                wff = 0.5;
+                obj.mdot = wff*mdot_ff + (1 - wff)*mdot_fb;
             end            
-                        
-            if obj.mdot <= 0, obj.mdot = 0; end
-            if obj.mdot >= 10, obj.mdot = 10; end
             
-            % set state-space variables
-%             obj.TsPrime = obj.x0 - obj.TsRef;
-%             obj.TinfPrime = obj.Tinf - obj.TinfRef;
-%             obj.TinPrime = Ts_in - obj.TinRef;
-%             obj.qsPrime = qsolar - obj.qsRef;
-%             obj.mdotPrime = obj.mdot - obj.mdotRef;
-%             A = obj.beta;
-%             B = [obj.zeta, obj.gamma, obj.theta, obj.psi, 1];
-%             u = [obj.mdotPrime; obj.TinfPrime; obj.TinPrime; ...
-%                 obj.qsPrime; obj.F_Ref];
-%             b_ = B*u;
-% 
-%             % step linear model solution
-%             Ap = [A, eye(size(A)); zeros(size(A)), zeros(size(A))];
-%             xx0 = [obj.TsPrime; b_];               
-%             xx = expm(.*Ap)*xx0;
-%             Ts = xx(1) + obj.TsRef;
-           
+            % limiting conditions
+            if obj.mdot <= 0, obj.mdot = 0; end
+            if obj.mdot >= 10, obj.mdot = 10; end                      
                                                        
             % set function outputs
             mdot_ = obj.mdot;            
@@ -361,9 +333,6 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         function T = C2K(~, TC)
             T = TC + 273.15; 
         end
-        
-        
-        
-     
+           
     end
 end

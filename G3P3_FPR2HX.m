@@ -226,65 +226,66 @@ iStart2 = 2;
 
 %% simulate reciever with high resolution
 
-% for i = iStart1:length(t1)
-%     
-%     % load current weather conditions
-%     hour_day1(i) = mod(t_h_start + t1(i)/3600, 24);
-%     DNI(i) = interp1(weather.time, weather.DNI, t_h_start + t1(i)/3600, 'makima');
-%     Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
-%     
-%     % set particle-to-sCO2 inlet temperature and flow rate
-%     sysData1.Tco2_in(i) = 565;
-%     sysData1.mdot_CO2_in_HX(i) = 5;
-%     sysData1.mdot_CO2_out_HX(i) = sysData1.mdot_CO2_in_HX(i);
-%     
-%     % reciever collection limit
-% %     sysData1.Qsolar(i) = step(HF_, DNI(i));
-%     
-%     % intermediate storage diverter valve control
-%     sysData1.y1_intermediateStorageDiverter(i) = 1; % no flow to cold bin
-%     
-%     % simulate operation based on hour of the day
-%     sysData1.Ts_in_FPR(i) = 600;
-%     if hour_day1(i) >= 1 && hour_day1(i) < 9
-%         sysData1.Qsolar(i) = 0;
-%         sysData1.mdot_s_in_FPR(i) = 9;               
-%         sysData1.mdot_hotTES(i) = -5;
-%         sysData1.mdot_s_in_hotBinDischarge(i) = 5;        
-%     elseif hour_day1(i) >= 9 && hour_day1(i) < 15
-%         sysData1.Qsolar(i) = step(HF_, DNI(i));
-%         sysData1.mdot_s_in_FPR(i) = 9;
-%         sysData1.mdot_hotTES(i) = 9;
-%         sysData1.mdot_s_in_hotBinDischarge(i) = 0;        
-%     else
-%         sysData1.Qsolar(i) = 0;
-%         sysData1.mdot_s_in_FPR(i) = 9;
-%         sysData1.mdot_hotTES(i) = 0;
-%         sysData1.mdot_s_in_hotBinDischarge(i) = 0;
-%     end
-%     
-%     % simulate system starting at the falling particle reciever
-% %     [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i), ...
-% %         sysData1.Ts_FPR{i}, sysData1.x_FPR{1}] = ...
-% %         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
-% %          sysData1.Qsolar(i), t1(i) - t1(iStart1));
-%     [sysData1.Ts_out_FPR(i), Ts_out_lin_FPR(i), sysData1.mdot_s_out_FPR(i)] = ...
-%         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), ...
-%         sysData1.Qsolar(i), t1(i) - t1(iStart1), 775);
-%      
-%     sysData1.Ts_in_RecieverDownComer(i) = sysData1.Ts_out_FPR(i);
-%     sysData1.mdot_s_in_RecieverDownComer(i) = sysData1.mdot_s_out_FPR(i);
-%     
-%     [sysData1.Ts_out_RecieverDownComer(i), sysData1.mdot_s_out_RecieverDownComer(i), ...
-%         sysData1.Ts_RecieverDownComer{i}, sysData1.Tm_RecieverDownComer{i}, ...
-%         sysData1.x_RecieverDownComer{i}] = step(RecieverDownComer, ...
-%         sysData1.Ts_in_RecieverDownComer(i), ...
-%         sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));
-%     fprintf('Ts_out_FPR = %1.2f °C\n', sysData1.Ts_out_FPR(i));
-% end
-% 
-% % save data table
-% save('sysData1.mat', 'sysData1');
+for i = iStart1:length(t1)
+    
+    % load current weather conditions
+    hour_day1(i) = mod(t_h_start + t1(i)/3600, 24);
+    DNI(i) = interp1(weather.time, weather.DNI, t_h_start + t1(i)/3600, 'makima');
+    Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
+    
+    % set particle-to-sCO2 inlet temperature and flow rate
+    sysData1.Tco2_in(i) = 565;
+    sysData1.mdot_CO2_in_HX(i) = 5;
+    sysData1.mdot_CO2_out_HX(i) = sysData1.mdot_CO2_in_HX(i);
+    
+    % reciever collection limit
+%     sysData1.Qsolar(i) = step(HF_, DNI(i));
+    
+    % intermediate storage diverter valve control
+    sysData1.y1_intermediateStorageDiverter(i) = 1; % no flow to cold bin
+    
+    % simulate operation based on hour of the day
+    sysData1.Ts_in_FPR(i) = 600;
+    if hour_day1(i) >= 1 && hour_day1(i) < 9
+        sysData1.Qsolar(i) = 0;
+        sysData1.mdot_s_in_FPR(i) = 9;               
+        sysData1.mdot_hotTES(i) = -5;
+        sysData1.mdot_s_in_hotBinDischarge(i) = 5;        
+    elseif hour_day1(i) >= 9 && hour_day1(i) < 15
+        sysData1.Qsolar(i) = step(HF_, DNI(i));
+%         sysData1.Qsolar(i) = 2e6;
+        sysData1.mdot_s_in_FPR(i) = 9;
+        sysData1.mdot_hotTES(i) = 9;
+        sysData1.mdot_s_in_hotBinDischarge(i) = 0;        
+    else
+        sysData1.Qsolar(i) = 0;
+        sysData1.mdot_s_in_FPR(i) = 9;
+        sysData1.mdot_hotTES(i) = 0;
+        sysData1.mdot_s_in_hotBinDischarge(i) = 0;
+    end
+    
+    % simulate system starting at the falling particle reciever
+%     [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i), ...
+%         sysData1.Ts_FPR{i}, sysData1.x_FPR{1}] = ...
+%         step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), sysData1.mdot_s_in_FPR(i), ...
+%          sysData1.Qsolar(i), t1(i) - t1(iStart1));
+    [sysData1.Ts_out_FPR(i), sysData1.mdot_s_out_FPR(i)] = ...
+        step(FPR_, sysData1.Ts_in_FPR(i), Tinf1(i), ...
+        sysData1.Qsolar(i), t1(i) - t1(iStart1), 775);
+     
+    sysData1.Ts_in_RecieverDownComer(i) = sysData1.Ts_out_FPR(i);
+    sysData1.mdot_s_in_RecieverDownComer(i) = sysData1.mdot_s_out_FPR(i);
+    
+    [sysData1.Ts_out_RecieverDownComer(i), sysData1.mdot_s_out_RecieverDownComer(i), ...
+        sysData1.Ts_RecieverDownComer{i}, sysData1.Tm_RecieverDownComer{i}, ...
+        sysData1.x_RecieverDownComer{i}] = step(RecieverDownComer, ...
+        sysData1.Ts_in_RecieverDownComer(i), ...
+        sysData1.mdot_s_in_RecieverDownComer(i), Tinf1(i), t1(i) - t1(iStart1));
+    fprintf('Ts_out_FPR = %1.2f °C\n', sysData1.Ts_out_FPR(i));
+end
+
+% save data table
+save('sysData1.mat', 'sysData1');
 
 
 %% simulate storage with low resolution
@@ -325,48 +326,48 @@ iStart2 = 2;
 %% simulate heat exchanger with high resolution
 
 % load data from storage operation
-load('sysData2_Winter.mat', 'sysData2')
-% load('sysData2_Summer.mat', 'sysData2')
-% load('sysData2_Spring.mat', 'sysData2')
-% load('sysData2_Fall.mat', 'sysData2')
-
-for i = 1:length(t1)
-    hour_day1(i) = mod(t_h_start + t1(i)/3600, 24);
-    Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
-    
-    if hour_day1(i) >= 1 && hour_day1(i) < 9             
-        sysData3.mdot_s_in_HotBinDischarge(i) = 5;
-        sysData3.Ts_in_HotBinDischarge(i) = ...
-                interp1(t2, sysData2.Ts_out_hotTES, t1(i), 'makima');               
-    elseif hour_day1(i) >= 9 && hour_day1(i) < 15
-        sysData3.mdot_s_in_HotBinDischarge(i) = 5;
-        sysData3.Ts_in_HotBinDischarge(i) = 600;      
-    else
-        sysData3.mdot_s_in_HotBinDischarge(i) = 5;
-        sysData3.Ts_in_HotBinDischarge(i) = 600; 
-    end
-    
-    [sysData3.Ts_out_HotBinDischarge(i), sysData3.mdot_s_out_HotBinDischarge(i), ...
-        sysData3.Ts_HotBinDischarge{i}, sysData3.Tm_HotBinDischarge{i}, ...
-        sysData3.x_HotBinDischarge{i}] = step(HotBinDischarge, ...
-        sysData3.Ts_in_HotBinDischarge(i), ...
-        sysData3.mdot_s_in_HotBinDischarge(i), Tinf1(i), t1(i));
-    
-    sysData3.Ts_in_HX(i) = sysData3.Ts_out_HotBinDischarge(i);
-    
-    [sysData3.Ts_out_HX(i), sysData3.Tco2_out_HX(i), ...
-        sysData3.mdot_s_out_HX(i), sysData3.mdot_CO2_out_HX(i), ...
-        sysData3.Ts_HX{i}, sysData3.Tco2_HX{i}, sysData3.Tm_HX{i}, ...
-        sysData3.Q_CO2(i), sysData3.Q_s(i), sysData3.x_HX{i}, ...
-        sysData3.Ts_out_lin_HX(i), sysData3.Tco2_out_lin_HX(i)] ...
-        = step(HX_, sysData3.Ts_in_HX(i), sysData3.Tco2_in_HX(i), sysData3.mdot_s_in_HX(i), ...
-                sysData3.mdot_CO2_in_HX(i), t1(i));
-    fprintf('Tco2_out_HX = %1.2f °C\n', sysData3.Tco2_out_HX(i));
-    
-end
-
-% save data table
-save('sysData3.mat', 'sysData3');
+% load('sysData2_Winter.mat', 'sysData2')
+% % load('sysData2_Summer.mat', 'sysData2')
+% % load('sysData2_Spring.mat', 'sysData2')
+% % load('sysData2_Fall.mat', 'sysData2')
+% 
+% for i = 1:length(t1)
+%     hour_day1(i) = mod(t_h_start + t1(i)/3600, 24);
+%     Tinf1(i) = interp1(weather.time, weather.Tinf, t_h_start + t1(i)/3600, 'makima');
+%     
+%     if hour_day1(i) >= 1 && hour_day1(i) < 9             
+%         sysData3.mdot_s_in_HotBinDischarge(i) = 5;
+%         sysData3.Ts_in_HotBinDischarge(i) = ...
+%                 interp1(t2, sysData2.Ts_out_hotTES, t1(i), 'makima');               
+%     elseif hour_day1(i) >= 9 && hour_day1(i) < 15
+%         sysData3.mdot_s_in_HotBinDischarge(i) = 5;
+%         sysData3.Ts_in_HotBinDischarge(i) = 600;      
+%     else
+%         sysData3.mdot_s_in_HotBinDischarge(i) = 5;
+%         sysData3.Ts_in_HotBinDischarge(i) = 600; 
+%     end
+%     
+%     [sysData3.Ts_out_HotBinDischarge(i), sysData3.mdot_s_out_HotBinDischarge(i), ...
+%         sysData3.Ts_HotBinDischarge{i}, sysData3.Tm_HotBinDischarge{i}, ...
+%         sysData3.x_HotBinDischarge{i}] = step(HotBinDischarge, ...
+%         sysData3.Ts_in_HotBinDischarge(i), ...
+%         sysData3.mdot_s_in_HotBinDischarge(i), Tinf1(i), t1(i));
+%     
+%     sysData3.Ts_in_HX(i) = sysData3.Ts_out_HotBinDischarge(i);
+%     
+%     [sysData3.Ts_out_HX(i), sysData3.Tco2_out_HX(i), ...
+%         sysData3.mdot_s_out_HX(i), sysData3.mdot_CO2_out_HX(i), ...
+%         sysData3.Ts_HX{i}, sysData3.Tco2_HX{i}, sysData3.Tm_HX{i}, ...
+%         sysData3.Q_CO2(i), sysData3.Q_s(i), sysData3.x_HX{i}, ...
+%         sysData3.Ts_out_lin_HX(i), sysData3.Tco2_out_lin_HX(i)] ...
+%         = step(HX_, sysData3.Ts_in_HX(i), sysData3.Tco2_in_HX(i), sysData3.mdot_s_in_HX(i), ...
+%                 sysData3.mdot_CO2_in_HX(i), t1(i));
+%     fprintf('Tco2_out_HX = %1.2f °C\n', sysData3.Tco2_out_HX(i));
+%     
+% end
+% 
+% % save data table
+% save('sysData3.mat', 'sysData3');
 
 % profsave;
 
