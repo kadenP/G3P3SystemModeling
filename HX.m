@@ -21,7 +21,9 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         cp_CO2 = 1250               % (J/kgK)  specific heat
         rho_CO2 = 110               % (kg/m3) CO2 density        
         cp_m = 500                  % (J/kgK) metal specific heat
-        rho_m = 8000                % (kg/m3) metal density                              
+        rho_m = 8000                % (kg/m3) metal density 
+        tauLag = 10                 % (s) lag filter time constant
+        tauLead = 1                 % (s) lead filter time constant
     end
 
     % properties that shouldn't be set by user
@@ -45,6 +47,10 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         w                           % (°C) temperature disturbance inputs
         Ts_in                       % (°C) particle inlet temperature
         Tco2_in                     % (°C) sCO2 inlet temperature
+        Ts_out                      % (°C) particle outlet temp
+        Tco2_out                    % (°C) sCO2 outlet temp
+        Ts_out_set                  % (°C) particle outlet temp setpoint
+        Tco2_out_set                % (°C) sCO2 outlet temp setpoint
         A                           % (1/s) 3nx3n state matrix
         As                          % (1/s) nx3n particle state matrix eqs
         Aco2                        % (1/s) nx3n sCO2 state matrix eqs
@@ -66,6 +72,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         uRef                        % (m/s) velocity input reference
         Ts_in_Ref                   % (°C) solids inlet temp reference
         Tco2_in_Ref                 % (°C) CO2 inlet temp reference
+        Ts_out_Ref                  % (°C) solids inlet temp reference
+        Tco2_out_Ref                % (°C) CO2 inlet temp reference
         fRef                        % (°C/s) state rate reference
         wRef                        % disturbance input reference
         xsPrime                     % (°C) particle state reference
@@ -78,6 +86,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         uPrime                      % (m/s) velocity input reference
         Ts_in_Prime                 % (°C) solids inlet temp reference
         Tco2_in_Prime               % (°C) CO2 inlet temp reference
+        Ts_out_Prime                 % (°C) solids inlet temp reference
+        Tco2_out_Prime               % (°C) CO2 inlet temp reference
         fPrime                      % (°C/s) state rate reference
         wPrime                      % disturbance input reference
         Jxs                         % linearized nx3n solid state matrix
@@ -114,16 +124,20 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
 %             % Define icon for System block
 %             icon = matlab.system.display.Icon('png-transparent-simulink-matlab-mathworks-computer-software-logo-coder-miscellaneous-angle-rectangle.png');
 %         end
-        function [in1name, in2name, in3name, in4name, in5name] = getInputNamesImpl(~)
+        function [in1name, in2name, in3name, in4name, in5name, in6name, ...
+                    in7name, in8name] = getInputNamesImpl(~)
           in1name = 'Ts_in';
           in2name = 'Tco2_in';
-          in3name = 'mdot_s_in';
-          in4name = 'mdot_CO2_in';
-          in5name = 't';
+          in3name = 't';
+          in4name = 'mode';
+          in5name = 'Ts_out_set';
+          in6name = 'Tco2_out_set';
+          in7name = 'mdot_s_in';
+          in8name = 'mdot_CO2_in';
+          
         end
         function [out1name, out2name, out3name, out4name, out5name, ...
-                  out6name, out7name, out8name, out9name, out10name, ...
-                  out11name] = getOutputNamesImpl(~)
+                  out6name, out7name, out8name, out9name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'Tco2_out';
           out3name = 'mdot_s_out';
@@ -133,8 +147,6 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           out7name = 'Tm';
           out8name = 'Q_CO2';
           out9name = 'x';
-          out10name = 'Ts_out_lin';
-          out11name = 'Tco2_out_lin';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -172,7 +184,14 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             obj.xmRef = obj.xm0;
             obj.Ts_in_Ref = obj.Ts0;
             obj.Tco2_in_Ref = obj.Tco20;
-
+            obj.Ts_out_Ref = obj.Ts0;
+            obj.Tco2_out_Ref = obj.Tco20;
+            obj.Ts_out = obj.Ts0;
+            obj.Tco2_out = obj.Tco20;
+            obj.vs = 1;
+            obj.vCO2 = 1;
+            obj.vsRef = obj.vs;
+            obj.vCO2Ref = obj.vCO2;
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -181,8 +200,9 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out, Tco2_out, mdot_s_out, mdot_CO2_out, Ts, Tco2, ...
-                Tm, Q_CO2, Q_s, x_, Ts_out_lin, Tco2_out_lin] ...
-                = stepImpl(obj, Ts_in, Tco2_in, mdot_s_in, mdot_CO2_in, t)
+                Tm, Q_CO2, Q_s, x_] ...
+                = stepImpl(obj, Ts_in, Tco2_in, t, mode, Ts_out_set, ...
+                                Tco2_out_set, mdot_s_in, mdot_CO2_in)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
@@ -193,7 +213,7 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             if isempty(obj.vCO2Ref), obj.vCO2Ref = 0; end 
             
             % compute velocities
-            if ~isempty(mdot_s_in) && ~isempty(mdot_CO2_in)
+            if mode == 0
                 % uses prescribed mass flow rate
                 mdot_s_out = mdot_s_in;
                 mdot_CO2_out = mdot_CO2_in;
@@ -203,30 +223,40 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
                       (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
             else
                 % set mass flow rates based on setpoint
-                
+                obj.Ts_out_set = Ts_out_set;
+                obj.Tco2_out_set = Tco2_out_set;
+                [mdot_s_in, mdot_CO2_in] = setMassFlowRate(obj, Ts_in, Tco2_in, obj.dt);
+                mdot_s_out = mdot_s_in;
+                mdot_CO2_out = mdot_CO2_in;
+                obj.vs = mdot_s_in/ ...
+                      (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                obj.vCO2 = mdot_CO2_in/ ...
+                      (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);                                
             end
-                  
-            
-                  
+                                               
             % construct system matrices and iterate
             buildSystemMatrices(obj);
             [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, obj.dt);
             
             % construct linearized system matrices and iterate
-            buildLinSystemMatrices(obj);
-            [Ts_lin, Tco2_lin, Tm_lin] = iterateLinTemps(obj, Ts_in, Tco2_in, obj.dt);
-            Ts_out_lin = Ts_lin(end);
-            Tco2_out_lin = Tco2_lin(1);
+%             buildLinSystemMatrices(obj);
+%             [Ts_lin, Tco2_lin, Tm_lin] = iterateLinTemps(obj, Ts_in, Tco2_in, obj.dt);
+%             Ts_out_lin = Ts_lin(end);
+%             Tco2_out_lin = Tco2_lin(1);
             
             % calculate remaining outputs
             Ts_out = Ts(end);
             Tco2_out = Tco2(1);
+            obj.Ts_out = Ts_out;
+            obj.Tco2_out = Tco2_out;
             Q_CO2 = obj.cp_CO2*mdot_CO2_in*(Tco2_out - Tco2_in);
             Q_s = obj.cp_s*mdot_s_in*(Ts_out - Ts_in);
             
             % set new linearization variables
             obj.Ts_in_Ref = Ts_in;
             obj.Tco2_in_Ref = Tco2_in;
+            obj.Ts_out_Ref = Ts_out;
+            obj.Tco2_out_Ref = Tco2_out;
             obj.vsRef = obj.vs;
             obj.vCO2Ref = obj.vCO2;
             
@@ -403,47 +433,57 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % assign solution to physical parameters
             Ts = xs_;
             Tco2 = xCO2_;
-            Tm = xm_;
-            
-            
-            
+            Tm = xm_;           
         end
-        function [mdot_s, mdot_co2] = setMassFlowRate(obj, Ts_in, Tco2_in, tg)
+        function [mdot_s, mdot_CO2] = setMassFlowRate(obj, Ts_in, Tco2_in, tg)
             % uses feedback and feedforward control to set the mass flow 
             % rates according to the current temperature error
+            obj.Ts_out_Prime = obj.Ts_out_set - obj.Ts_out_Ref;
+            obj.Tco2_out_Prime = obj.Tco2_out_set - obj.Tco2_out_Ref;
             
-            % set Jacobian variables
-           
-            
-            % set state-space variables
-                                         
-
+            % update Jacobian matrices
+            buildSystemMatrices(obj);
+            buildLinSystemMatrices(obj);
+            iterateLinTemps(obj, Ts_in, Tco2_in, tg);
+                                                     
             % set feedback and feedforward controller
-            if abs(obj.zeta) > obj.kappaAdv*10
+%             if abs(obj.zeta) > obj.kappaAdv*10
                 % feedforward signal computed for steady state condition
-                mdot_ff = -1/obj.zeta*(obj.beta*(obj.Tset - obj.TsRef) + ...
-                                    obj.gamma*obj.TinfPrime + ...
-                                    obj.theta*obj.TinPrime + ...
-                                    obj.psi*obj.qsPrime + obj.F_Ref) + obj.mdotRef;
+                obj.fRef = obj.A*obj.xRef + obj.B*[obj.Ts_in_Ref; obj.Tco2_in_Ref];
+                obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
+                obj.Tco2_in_Prime = Tco2_in - obj.Tco2_in_Ref;
+                w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
+                rs_ = linspace(Ts_in, obj.Ts_out_set, ...
+                    length(obj.xsPrime))' - obj.xsRef;
+                rco2_ = linspace(Tco2_in, obj.Tco2_out_set, ...
+                                    length(obj.xCO2Prime))' - obj.xCO2Ref;
+                rm_ = obj.xmPrime;
+                r_ = [rs_; rco2_; rm_];
+                v_ff = [obj.vsRef; obj.vCO2Ref] - (pinv(obj.Ju)*obj.Jx*r_ + pinv(obj.Ju)*obj.Jw*w_);
                 
                 % feedback signal with lead-lag compensation               
                 Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
                       (1 - exp(-(tg)/obj.tauLead));
-                obj.Ky = Fll*obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
+                Ky_ = [0.01, 1; 1, 0.01];
 %                     obj.Ky = -Fll*0.06;
-                mdot_fb = obj.mdotRef + obj.Ky*(obj.Tset - obj.x0); 
+                v_fb = [obj.vsRef; obj.vCO2Ref] + ...
+                         Ky_*([obj.Ts_out_set; obj.Tco2_out_set] - ...
+                         [obj.Ts_out; obj.Tco2_out]); 
                 
                 % feedback and feedforward signals combined with weighting
                 wff = 0.5;
-                obj.mdot = wff*mdot_ff + (1 - wff)*mdot_fb;
-            end            
+                obj.vs = wff*v_ff(1) + (1 - wff)*v_fb(1);
+                obj.vCO2 = wff*v_ff(2) + (1 - wff)*v_fb(2);
+%             end 
+            
+            mdot_s = obj.vs*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+            mdot_CO2 = obj.vCO2*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
             
             % limiting conditions
-            if obj.mdot <= 0, obj.mdot = 0; end
-            if obj.mdot >= 10, obj.mdot = 10; end                      
-                                                       
-            % set function outputs
-            mdot_ = obj.mdot;            
+            if mdot_s <= 0.5, mdot_s = 0.5; end
+            if mdot_s >= 10, mdot_s = 10; end 
+            if mdot_CO2 <= 0.5, mdot_CO2 = 0.5; end
+            if mdot_CO2 >= 10, mdot_CO2 = 10; end 
                        
         end
                   
