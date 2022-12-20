@@ -1,5 +1,5 @@
 dt = 10;
-t = 0:dt:3600;
+t = 0:dt:4*3600;
 t = t';
 
 HX_ = HX();
@@ -9,9 +9,9 @@ HX_.Ts0 = 25;
 HX_.Tco20 = 25;
 HX_.h_s = 400;                   % (W/m2K) solid-wall heat transfer coefficient 
 HX_.h_CO2 = 3000;                % (W/m2K) CO2 heat transfer coefficient 
-mdot_s_in_HX = zeros(size(t)); mdot_s_in_HX(:) = 5;
-mdot_CO2_in_HX = zeros(size(t)); mdot_CO2_in_HX(:) = 5;
-Ts_out_set = 600;
+mdot_s_in_HX = zeros(size(t)); mdot_s_in_HX(:) = 10;
+mdot_CO2_in_HX = zeros(size(t)); mdot_CO2_in_HX(:) = 10;
+Ts_out_set = 601;
 Tco2_out_set = 700;
 Ts_in_HX = zeros(size(t)); Ts_in_HX(:) = 750;
 Tco2_in_HX = zeros(size(t)); Tco2_in_HX(:) = 550;
