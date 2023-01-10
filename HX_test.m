@@ -13,7 +13,7 @@ mdot_s_in_HX = zeros(size(t)); mdot_s_in_HX(:) = 10;
 mdot_CO2_in_HX = zeros(size(t)); mdot_CO2_in_HX(:) = 10;
 Ts_out_set = 601;
 Tco2_out_set = 700;
-Ts_in_HX = zeros(size(t)); Ts_in_HX(:) = 750;
+Ts_in_HX = zeros(size(t)); Ts_in_HX(1:500) = 750; Ts_in_HX(501:end) = 725;
 Tco2_in_HX = zeros(size(t)); Tco2_in_HX(:) = 550;
 Ts_out_HX = zeros(size(t)); Ts_out(1) = HX_.Ts0;
 Tco2_out_HX = zeros(size(t)); Tco2_out(1) = HX_.Tco20;

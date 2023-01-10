@@ -100,7 +100,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         Ju                          % linearized 3nx2 input matrix
         Jws                         % linearized 3nx1 solid dist. matrix 
         JwCO2                       % linearized 3nx1 CO2 dist. matrix 
-        Jw                          % linearized 3nx3 dist. matrix 
+        Jw                          % linearized 3nx3 dist. matrix
+        Cz                          % 3nx2 state measurment matrix
     end
 
     % Pre-computed constants
@@ -223,16 +224,25 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
                 obj.vCO2 = mdot_CO2_in/ ...
                       (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
             else
-                % set mass flow rates based on setpoint
-                obj.Ts_out_set = Ts_out_set;
-                obj.Tco2_out_set = Tco2_out_set;
-                [mdot_s_in, mdot_CO2_in] = setMassFlowRate(obj, Ts_in, Tco2_in, obj.dt);
-                mdot_s_out = mdot_s_in;
-                mdot_CO2_out = mdot_CO2_in;
-                obj.vs = mdot_s_in/ ...
-                      (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
-                obj.vCO2 = mdot_CO2_in/ ...
-                      (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);                               
+                if t < 120
+                    mdot_s_out = 5;
+                    mdot_CO2_out = 5;
+                    obj.vs = mdot_s_in/ ...
+                          (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                    obj.vCO2 = mdot_CO2_in/ ...
+                          (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
+                else
+                    % set mass flow rates based on setpoint
+                    obj.Ts_out_set = Ts_out_set;
+                    obj.Tco2_out_set = Tco2_out_set;
+                    [mdot_s_in, mdot_CO2_in] = setMassFlowRate(obj, Ts_in, Tco2_in, obj.dt);
+                    mdot_s_out = mdot_s_in;
+                    mdot_CO2_out = mdot_CO2_in;
+                    obj.vs = mdot_s_in/ ...
+                          (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                    obj.vCO2 = mdot_CO2_in/ ...
+                          (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W); 
+                end
             end
                                                
             % construct system matrices and iterate
@@ -362,16 +372,16 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
                         zeros(2*obj.n, 1)];
             obj.Jws = zeros(3*obj.n, 1); obj.Jws(1) = Omega1Ref;
             % sCO2 temperature equations
-            Phi1Ref = -(obj.vCO2Ref/obj.delta + 2*obj.kappa_CO2);
-            Phi2Ref = obj.vCO2Ref/obj.delta;
+            Phi1Ref = (obj.vCO2Ref/obj.delta + 2*obj.kappa_CO2);
+            Phi2Ref = -obj.vCO2Ref/obj.delta;
             Phi3Ref = 2*obj.kappa_CO2;
             obj.JxCO2 = spdiags([Phi1Ref*ones(obj.n, 1), ...
                 Phi2Ref*ones(obj.n, 1), Phi3Ref*ones(obj.n, 1)], ...
                 [obj.n, obj.n+1, 2*obj.n], obj.n, 3*obj.n);
-            obj.JxCO2(obj.n, 2*obj.n+1) = 0; % hold for sCO2 inlet temp
+            obj.JxCO2(obj.n, obj.n+1) = 0; % hold for sCO2 inlet temp
             obj.JuCO2 = [zeros(obj.n, 1); (obj.xCO2Ref(1:end-1) - ...
                        obj.xCO2Ref(2:end))/obj.delta; 0; zeros(obj.n, 1)];
-            obj.JwCO2 = zeros(3*obj.n, 1); obj.JwCO2(2*obj.n) = Phi2Ref;            
+            obj.JwCO2 = zeros(3*obj.n, 1); obj.JwCO2(obj.n+1) = Phi2Ref;            
             % metal temperature equations
             Lambda1Ref = obj.kappa_ms;
             Lambda2Ref = obj.kappa_mCO2;
@@ -382,7 +392,11 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % full state and input matrices
             obj.Jx = [obj.Jxs; obj.JxCO2; obj.Jxm];
             obj.Ju = [obj.Jus, obj.JuCO2];
-            obj.Jw = [obj.Jws, obj.JwCO2, eye(3*obj.n)];            
+            obj.Jw = [obj.Jws, obj.JwCO2, eye(3*obj.n)];
+            % measurment matrices
+            obj.Cz = zeros(2, 3*obj.n);
+            obj.Cz(1, obj.n) = 1;            % outlet particle temperature 
+            obj.Cz(2, 2*obj.n) = 1;          % outlet sCO2 temperature
         end
         function [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, t)
             % uses the developed semi-discrete heat exchanger model to
@@ -439,49 +453,62 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         function [mdot_s, mdot_CO2] = setMassFlowRate(obj, Ts_in, Tco2_in, tg)
             % uses feedback and feedforward control to set the mass flow 
             % rates according to the current temperature error
-%             obj.Ts_out_Prime = obj.Ts_out_set - obj.Ts_out_Ref;
-%             obj.Tco2_out_Prime = obj.Tco2_out_set - obj.Tco2_out_Ref;
+            obj.Ts_out_Prime = obj.Ts_out_set - obj.Ts_out_Ref;
+            obj.Tco2_out_Prime = obj.Tco2_out_set - obj.Tco2_out_Ref;
             
             % update Jacobian matrices
-%             buildSystemMatrices(obj);
-%             buildLinSystemMatrices(obj);
-%             iterateLinTemps(obj, Ts_in, Tco2_in, tg);
+            buildSystemMatrices(obj);
+            buildLinSystemMatrices(obj);
+            iterateLinTemps(obj, Ts_in, Tco2_in, tg);
             
             % conpute current feedback error
             e_ = [obj.Ts_out_set; obj.Tco2_out_set] - ...
                          [obj.Ts_out; obj.Tco2_out];
                                                      
             % set feedback and feedforward controller
-            if max(abs(e_)) > 10
+%             if max(abs(e_)) > 1
                 % feedforward signal computed for steady state condition
-%                 obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
-%                 obj.Tco2_in_Prime = Tco2_in - obj.Tco2_in_Ref;
-%                 w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
-%                 rs_ = linspace(Ts_in, obj.Ts_out_set, ...
-%                     length(obj.xsPrime))' - obj.xsRef;
-%                 rco2_ = linspace(Tco2_in, obj.Tco2_out_set, ...
-%                                     length(obj.xCO2Prime))' - obj.xCO2Ref;
+                obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
+                obj.Tco2_in_Prime = Tco2_in - obj.Tco2_in_Ref;
+                w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
+                rs_ = linspace(Ts_in, obj.Ts_out_set, ...
+                    length(obj.xsPrime))' - obj.xsRef;
+                rco2_ = linspace(Tco2_in, obj.Tco2_out_set, ...
+                                    length(obj.xCO2Prime))' - obj.xCO2Ref;
 %                 rm_ = obj.xmPrime;
 %                 r_ = [rs_; rco2_; rm_];
 %                 v_ff = [obj.vsRef; obj.vCO2Ref] - (pinv(obj.Ju)*obj.Jx*r_ + pinv(obj.Ju)*obj.Jw*w_);
-                v_ff = [0; 0];                
+%                 syms s t
+%                 Kuw = -(obj.Cz/(s*eye(3*obj.n) - obj.Jx)*obj.Ju) ...
+%                             /(obj.Cz/(s*eye(3*obj.n) - obj.Jx)*obj.Jw)
+                CR = obj.Cz*inv(obj.Jx);
+                Kuw_ss = -inv(CR*obj.Ju)*(CR*obj.Jw);
+                v_ff = [obj.vsRef; obj.vCO2Ref] + Kuw_ss*w_;
+
+                if isnan(v_ff(1)) || isnan(v_ff(2))
+%                     [mdot_s_ff, mdot_CO2_ff] = computeLMTDFlowRates(obj, Ts_in, Tco2_in);
+                    mdot_s_ff = 0;
+                    mdot_CO2_ff = 0;
+                else
+                    mdot_s_ff = v_ff(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                    mdot_CO2_ff = v_ff(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W); 
+                end   
+                
                 % feedback signal with lead-lag compensation               
                 Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
                       (1 - exp(-(tg)/obj.tauLead));
-                Ky_ = [0.01, 0.001; 0.001, 0.01];
-                v_fb = [obj.vsRef; obj.vCO2Ref] + Ky_*e_;
+                Ky_ = [5e-6, 0; 0, 5e-2];
+                v_fb = Ky_*e_;
+                mdot_s_fb = v_fb(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                mdot_CO2_fb = v_fb(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
                 
-                % feedback and feedforward signals combined with weighting
-                wff = 1;
-                obj.vs = wff*v_ff(1) + (1 - wff)*v_fb(1);
-                obj.vCO2 = wff*v_ff(2) + (1 - wff)*v_fb(2);
-            end 
-            
-%             mdot_s = obj.vs*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
-%             mdot_CO2 = obj.vCO2*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
-            [mdot_s, mdot_CO2] = computeLMTDFlowRates(obj, Ts_in, Tco2_in);
-
-            
+                % feedback and feedforward signals combined
+                mdot_s = mdot_s_ff + mdot_s_fb;
+                mdot_CO2 = mdot_CO2_ff - mdot_CO2_fb;
+%             else
+%                 [mdot_s, mdot_CO2] = computeLMTDFlowRates(obj, Ts_in, Tco2_in);               
+%             end 
+                        
             % limiting conditions
             if mdot_s <= 0.5, mdot_s = 0.5; end
             if mdot_s >= 10, mdot_s = 10; end 
