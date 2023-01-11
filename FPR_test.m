@@ -18,4 +18,5 @@ mdot_s_out = zeros(size(t));
 for i = 1:length(t)    
     [Ts_out(i), mdot_s_out(i)] = ...
         step(FPR_, Ts_in, Tinf, Qsolar, t(i), Tset_(i));
+    fprintf('Ts_out_FPR = %1.2f °C\n', Ts_out(i));
 end

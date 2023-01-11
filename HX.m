@@ -87,8 +87,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
         uPrime                      % (m/s) velocity input reference
         Ts_in_Prime                 % (°C) solids inlet temp reference
         Tco2_in_Prime               % (°C) CO2 inlet temp reference
-        Ts_out_Prime                 % (°C) solids inlet temp reference
-        Tco2_out_Prime               % (°C) CO2 inlet temp reference
+        Ts_out_Prime                % (°C) solids inlet temp reference
+        Tco2_out_Prime              % (°C) CO2 inlet temp reference
         fPrime                      % (°C/s) state rate reference
         wPrime                      % disturbance input reference
         Jxs                         % linearized nx3n solid state matrix

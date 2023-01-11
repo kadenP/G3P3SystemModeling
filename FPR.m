@@ -1,4 +1,4 @@
-classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
+classdef FPR < matlab.System
     % This MATLAB system block simulates the heating of particles falling through the falling particle reciever. It is approximated as a lumped system with the solar flux coming directly from the heliostat field
 
     % Public, nontunable properties
@@ -51,15 +51,15 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
         TsRef                       % (K) reference state  
         F_Ref                       % (°C/s) reference rate
         mdotRef                     % (kg/s) reference mass flow rate
-        G                           % linearized disturbance vector
+        A                           % linearized state matrix
+        Bu                          % linearized input matrix
+        Bw                          % linearized disturbance vector
+        Cz                          % measurment state matrix
+        Dzw                         % measurment disturbance matrix
         w                           % linearized disturbance inputs
         Ky                          % feedback controller
         ks                          % scaling vector for controller
-        
-        
-        
-        
-        
+                
     end
 
     % Pre-computed constants
@@ -222,6 +222,35 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
             Ts = TsK - 273.15;
                         
         end
+        function buildLinTempSystem(obj, Ts_in, qsolar)
+            % sets system matrices for the linearized FPR model
+
+            obj.F_Ref = obj.kappaSol*obj.qsRef - ...
+                    obj.kappaRad*((obj.C2K(obj.TsRef))^4 - (obj.C2K(obj.TinfRef)^4)) - ...
+                    obj.kappaConv*(obj.TsRef - obj.TinfRef) - ...
+                    obj.kappaAdv*obj.mdotRef*(obj.TsRef - obj.TinRef);
+
+            % set Jacobian variables
+            obj.beta = -4*obj.kappaRad*(obj.C2K(obj.TsRef))^3 - obj.kappaConv ...
+                        - obj.kappaAdv*obj.mdotRef;
+            obj.zeta = obj.kappaAdv*(obj.TinRef - obj.TsRef);
+
+            % set state-space variables
+            obj.TsPrime = x0_ - obj.TsRef;
+            obj.TinfPrime = obj.Tinf - obj.TinfRef;
+            obj.TinPrime = Ts_in - obj.TinRef;
+            obj.qsPrime = qsolar - obj.qsRef;
+            obj.mdotPrime = obj.mdot - obj.mdotRef;
+            obj.A = obj.beta;
+            obj.Bu = obj.zeta;
+            obj.Bw = [obj.gamma, obj.theta, obj.psi, 1];
+            obj.Cz = [1; 0; 0; 0];
+            obj.Dzw = [0, 0, 0, 0; 1, 0, 0, 0; 0, 1, 0, 0; 0, 0, 1, 0];
+          
+
+
+
+        end
         function Ts = stepLinTempSolution(obj, Ts_in, qsolar)
             % calculates the next lumped temperature solution with the
             % linearized system model
@@ -309,17 +338,19 @@ classdef FPR < matlab.System & matlab.system.mixin.CustomIcon
                                     obj.gamma*obj.TinfPrime + ...
                                     obj.theta*obj.TinPrime + ...
                                     obj.psi*obj.qsPrime + obj.F_Ref) + obj.mdotRef;
+
+                % dynamic feedforward controller
+
                 
                 % feedback signal with lead-lag compensation               
                 Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
                       (1 - exp(-(tg)/obj.tauLead));
                 obj.Ky = Fll*obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
 %                     obj.Ky = -Fll*0.06;
-                mdot_fb = obj.mdotRef + obj.Ky*(obj.Tset - obj.x0); 
+                mdot_fb = obj.Ky*(obj.Tset - obj.x0); 
                 
-                % feedback and feedforward signals combined with weighting
-                wff = 0.5;
-                obj.mdot = wff*mdot_ff + (1 - wff)*mdot_fb;
+                % feedback and feedforward signals combined
+                obj.mdot = mdot_ff + mdot_fb;
             end            
             
             % limiting conditions
