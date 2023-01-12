@@ -1,4 +1,4 @@
-classdef HX < matlab.System & matlab.system.mixin.CustomIcon
+classdef HX < matlab.System
     % This MATLAB system block simulates transient behavior of the particle-to-sCO2 heat exchanger. The particle, sCO2, and metal temperatures are computed at each time step accross the defined discrete mesh.
 
     % Public, nontunable properties
@@ -139,7 +139,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           
         end
         function [out1name, out2name, out3name, out4name, out5name, ...
-                  out6name, out7name, out8name, out9name] = getOutputNamesImpl(~)
+                  out6name, out7name, out8name, out9name, out10name] ...
+                  = getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'Tco2_out';
           out3name = 'mdot_s_out';
@@ -148,7 +149,8 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
           out6name = 'Tco2';
           out7name = 'Tm';
           out8name = 'Q_CO2';
-          out9name = 'x';
+          out9name = 'Q_s';
+          out10name = 'x';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -459,55 +461,46 @@ classdef HX < matlab.System & matlab.system.mixin.CustomIcon
             % update Jacobian matrices
             buildSystemMatrices(obj);
             buildLinSystemMatrices(obj);
-            iterateLinTemps(obj, Ts_in, Tco2_in, tg);
+
+            % compute reference ramp function
+            obj.fRef = obj.A*obj.xRef + obj.B*[obj.Ts_in_Ref; obj.Tco2_in_Ref];
+
+            % compute differences from reference
+            obj.x0Prime = obj.x0 - obj.xRef;
+            obj.vsPrime = obj.vs - obj.vsRef;
+            obj.vCO2Prime = obj.vCO2 - obj.vCO2Ref;
+            obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
+            obj.Tco2_in_Prime = Tco2_in - obj.Tco2_in_Ref;
             
             % conpute current feedback error
             e_ = [obj.Ts_out_set; obj.Tco2_out_set] - ...
                          [obj.Ts_out; obj.Tco2_out];
                                                      
-            % set feedback and feedforward controller
-%             if max(abs(e_)) > 1
-                % feedforward signal computed for steady state condition
-                obj.Ts_in_Prime = Ts_in - obj.Ts_in_Ref;
-                obj.Tco2_in_Prime = Tco2_in - obj.Tco2_in_Ref;
-                w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
-                rs_ = linspace(Ts_in, obj.Ts_out_set, ...
-                    length(obj.xsPrime))' - obj.xsRef;
-                rco2_ = linspace(Tco2_in, obj.Tco2_out_set, ...
-                                    length(obj.xCO2Prime))' - obj.xCO2Ref;
-%                 rm_ = obj.xmPrime;
-%                 r_ = [rs_; rco2_; rm_];
-%                 v_ff = [obj.vsRef; obj.vCO2Ref] - (pinv(obj.Ju)*obj.Jx*r_ + pinv(obj.Ju)*obj.Jw*w_);
-%                 syms s t
-%                 Kuw = -(obj.Cz/(s*eye(3*obj.n) - obj.Jx)*obj.Ju) ...
-%                             /(obj.Cz/(s*eye(3*obj.n) - obj.Jx)*obj.Jw)
-                CR = obj.Cz*inv(obj.Jx);
-                Kuw_ss = -inv(CR*obj.Ju)*(CR*obj.Jw);
-                v_ff = [obj.vsRef; obj.vCO2Ref] + Kuw_ss*w_;
+            % feedforward signal computed for steady state condition
+            w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
+            CR = obj.Cz*inv(obj.Jx);
+            Kuw_ss = -inv(CR*obj.Ju)*(CR*obj.Jw);
+            v_ff = [obj.vsRef; obj.vCO2Ref] + Kuw_ss*w_;
 
-                if isnan(v_ff(1)) || isnan(v_ff(2))
-%                     [mdot_s_ff, mdot_CO2_ff] = computeLMTDFlowRates(obj, Ts_in, Tco2_in);
-                    mdot_s_ff = 0;
-                    mdot_CO2_ff = 0;
-                else
-                    mdot_s_ff = v_ff(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
-                    mdot_CO2_ff = v_ff(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W); 
-                end   
-                
-                % feedback signal with lead-lag compensation               
-                Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
-                      (1 - exp(-(tg)/obj.tauLead));
-                Ky_ = [5e-6, 0; 0, 5e-2];
-                v_fb = Ky_*e_;
-                mdot_s_fb = v_fb(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
-                mdot_CO2_fb = v_fb(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
-                
-                % feedback and feedforward signals combined
-                mdot_s = mdot_s_ff + mdot_s_fb;
-                mdot_CO2 = mdot_CO2_ff - mdot_CO2_fb;
-%             else
-%                 [mdot_s, mdot_CO2] = computeLMTDFlowRates(obj, Ts_in, Tco2_in);               
-%             end 
+            if isnan(v_ff(1)) || isnan(v_ff(2))
+                mdot_s_ff = 0;
+                mdot_CO2_ff = 0;
+            else
+                mdot_s_ff = v_ff(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                mdot_CO2_ff = v_ff(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W); 
+            end   
+            
+            % feedback signal with lead-lag compensation               
+            Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
+                  (1 - exp(-(tg)/obj.tauLead));
+            Ky_ = [5e-6, 0; 0, 5e-2];
+            v_fb = Ky_*e_;
+            mdot_s_fb = v_fb(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+            mdot_CO2_fb = v_fb(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
+            
+            % feedback and feedforward signals combined
+            mdot_s = mdot_s_ff + mdot_s_fb;
+            mdot_CO2 = mdot_CO2_ff - mdot_CO2_fb;
                         
             % limiting conditions
             if mdot_s <= 0.5, mdot_s = 0.5; end

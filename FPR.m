@@ -58,6 +58,7 @@ classdef FPR < matlab.System
         Dzw                         % measurment disturbance matrix
         w                           % linearized disturbance inputs
         Ky                          % feedback controller
+        Kuw                         % feedforward controller
         ks                          % scaling vector for controller
                 
     end
@@ -71,7 +72,7 @@ classdef FPR < matlab.System
         % Constructor
         function obj = TES(varargin)
             % Support name-value pair arguments when constructing object
-            setProperties(obj,nargin,varargin{:})
+            setProperties(obj, nargin, varargin{:})
         end
     end
     
@@ -91,9 +92,9 @@ classdef FPR < matlab.System
           in4name = 't';
           in5name = 'Tset';
         end
-        function [out1name, out2name, out3name] = getOutputNamesImpl(~)
+        function [out1name, out2name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
-          out3name = 'mdot_s_out';
+          out2name = 'mdot_s_out';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -102,8 +103,11 @@ classdef FPR < matlab.System
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
               'PropertyList', {'Ts0', 'hInf', 'cp_s', 'rho_s', 'phi_s', 'epsilon_s', ...
-              'alpha_s'});                            
-          groups = [group1, group2];    
+              'alpha_s'}); 
+          group3 = matlab.system.display.SectionGroup( ...
+              'Title', 'Control Parameters', ...
+              'PropertyList', {'tauLag', 'tauLead'});
+          groups = [group1, group2, group3];    
        end
        
     end
@@ -115,6 +119,7 @@ classdef FPR < matlab.System
             obj.tNow = 0;
             obj.x0 = obj.Ts0;
             obj.mdotRef = 1;
+            obj.TsRef = obj.Ts0;
             obj.mdot = 1;
             obj.Vr = obj.H*obj.W*obj.d;
             obj.Ar = obj.H*obj.W;
@@ -140,10 +145,7 @@ classdef FPR < matlab.System
                         
             % compute variables dependent on inputs
             obj.Tinf = Tinf;
-            obj.Tset = Tset;
-            
-            % initialize reference state if first instance
-            if isempty(obj.TsRef), obj.TsRef = obj.Ts0; end
+            obj.Tset = Tset;            
             
             % generate mass flow control law with linear model
             if Qsolar > 0
@@ -223,33 +225,35 @@ classdef FPR < matlab.System
                         
         end
         function buildLinTempSystem(obj, Ts_in, qsolar)
-            % sets system matrices for the linearized FPR model
-
+            % sets Jacobians and system matrices for the linearized FPR model            
             obj.F_Ref = obj.kappaSol*obj.qsRef - ...
                     obj.kappaRad*((obj.C2K(obj.TsRef))^4 - (obj.C2K(obj.TinfRef)^4)) - ...
                     obj.kappaConv*(obj.TsRef - obj.TinfRef) - ...
                     obj.kappaAdv*obj.mdotRef*(obj.TsRef - obj.TinRef);
 
             % set Jacobian variables
+            obj.gamma = 4*obj.kappaRad*(obj.C2K(obj.TinfRef))^3 ...
+                        + obj.kappaConv;
+            obj.theta = obj.kappaAdv*obj.mdotRef;
+            obj.psi = obj.kappaSol;
             obj.beta = -4*obj.kappaRad*(obj.C2K(obj.TsRef))^3 - obj.kappaConv ...
                         - obj.kappaAdv*obj.mdotRef;
             obj.zeta = obj.kappaAdv*(obj.TinRef - obj.TsRef);
 
-            % set state-space variables
-            obj.TsPrime = x0_ - obj.TsRef;
+            % set linearized state-space variables
+            obj.TsPrime = obj.x0 - obj.TsRef;
             obj.TinfPrime = obj.Tinf - obj.TinfRef;
             obj.TinPrime = Ts_in - obj.TinRef;
             obj.qsPrime = qsolar - obj.qsRef;
             obj.mdotPrime = obj.mdot - obj.mdotRef;
+
+            % set linear system matrices
             obj.A = obj.beta;
             obj.Bu = obj.zeta;
             obj.Bw = [obj.gamma, obj.theta, obj.psi, 1];
             obj.Cz = [1; 0; 0; 0];
             obj.Dzw = [0, 0, 0, 0; 1, 0, 0, 0; 0, 1, 0, 0; 0, 0, 1, 0];
           
-
-
-
         end
         function Ts = stepLinTempSolution(obj, Ts_in, qsolar)
             % calculates the next lumped temperature solution with the
@@ -288,14 +292,14 @@ classdef FPR < matlab.System
                 obj.TinPrime = Ts_in - obj.TinRef;
                 obj.qsPrime = qsolar - obj.qsRef;
                 obj.mdotPrime = obj.mdot - obj.mdotRef;
-                A = obj.beta;
+                A_ = obj.beta;
                 B = [obj.zeta, obj.gamma, obj.theta, obj.psi, 1];
                 u = [obj.mdotPrime; obj.TinfPrime; obj.TinPrime; ...
                     obj.qsPrime; obj.F_Ref];
                 b_ = B*u;
 
                 % step linear model solution
-                Ap = [A, eye(size(A)); zeros(size(A)), zeros(size(A))];
+                Ap = [A_, eye(size(A_)); zeros(size(A_)), zeros(size(A_))];
                 xx0 = [obj.TsPrime; b_];               
                 xx = expm(dt_.*Ap)*xx0;
                 Ts = xx(1) + obj.TsRef;
@@ -309,44 +313,21 @@ classdef FPR < matlab.System
             % uses feedback control to set the mass flow rate according to
             % the current temperature error
             
-            % set Jacobian variables;
-            obj.gamma = 4*obj.kappaRad*(obj.C2K(obj.TinfRef))^3 ...
-                        + obj.kappaConv;
-            obj.theta = obj.kappaAdv*obj.mdotRef;
-            obj.psi = obj.kappaSol;            
-                       
-            obj.F_Ref = obj.kappaSol*obj.qsRef - ...
-                obj.kappaRad*((obj.C2K(obj.TsRef))^4 - (obj.C2K(obj.TinfRef)^4)) - ...
-                obj.kappaConv*(obj.TsRef - obj.TinfRef) - ...
-                obj.kappaAdv*obj.mdotRef*(obj.TsRef - obj.TinRef);
-
-            % set Jacobian variables
-            obj.beta = -4*obj.kappaRad*(obj.C2K(obj.TsRef))^3 - obj.kappaConv ...
-                        - obj.kappaAdv*obj.mdotRef;
-            obj.zeta = obj.kappaAdv*(obj.TinRef - obj.TsRef);
-            
-            % set state-space variables
-            obj.TsPrime = obj.x0 - obj.TsRef;
-            obj.TinfPrime = obj.Tinf - obj.TinfRef;
-            obj.TinPrime = Ts_in - obj.TinRef;
-            obj.qsPrime = qsolar - obj.qsRef;                                         
+            % set linearized system parameters
+            buildLinTempSystem(obj, Ts_in, qsolar)                                         
 
             % set feedback and feedforward controller
             if abs(obj.zeta) > obj.kappaAdv*10
-                % feedforward signal computed for steady state condition
-                mdot_ff = -1/obj.zeta*(obj.beta*(obj.Tset - obj.TsRef) + ...
-                                    obj.gamma*obj.TinfPrime + ...
-                                    obj.theta*obj.TinPrime + ...
-                                    obj.psi*obj.qsPrime + obj.F_Ref) + obj.mdotRef;
-
                 % dynamic feedforward controller
-
+                obj.Kuw = -obj.Bw./obj.zeta - ...
+                        pinv(obj.Cz)*obj.Dzw.*exp(-obj.beta*tg)./obj.zeta;
+                mdot_ff = obj.mdotRef + obj.Kuw*[obj.TinfPrime; obj.TinPrime; ...
+                    obj.qsPrime; obj.F_Ref];
                 
                 % feedback signal with lead-lag compensation               
                 Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
                       (1 - exp(-(tg)/obj.tauLead));
                 obj.Ky = Fll*obj.ks/obj.zeta*[obj.gamma; obj.theta; obj.psi; 1];
-%                     obj.Ky = -Fll*0.06;
                 mdot_fb = obj.Ky*(obj.Tset - obj.x0); 
                 
                 % feedback and feedforward signals combined
