@@ -102,6 +102,7 @@ classdef HX < matlab.System
         JwCO2                       % linearized 3nx1 CO2 dist. matrix 
         Jw                          % linearized 3nx3 dist. matrix
         Cz                          % 3nx2 state measurment matrix
+        Dzw                         % disturbance measurment matrix          
     end
 
     % Pre-computed constants
@@ -396,9 +397,13 @@ classdef HX < matlab.System
             obj.Ju = [obj.Jus, obj.JuCO2];
             obj.Jw = [obj.Jws, obj.JwCO2, eye(3*obj.n)];
             % measurment matrices
-            obj.Cz = zeros(2, 3*obj.n);
+            obj.Cz = zeros(4, 3*obj.n);
             obj.Cz(1, obj.n) = 1;            % outlet particle temperature 
             obj.Cz(2, 2*obj.n) = 1;          % outlet sCO2 temperature
+            obj.Dzw = zeros(4, 2+3*obj.n);
+            obj.Dzw(3, 1) = 1;               % inlet particle temperature
+            obj.Dzw(4, 2) = 1;               % inlet sCO2 temperature
+            
         end
         function [Ts, Tco2, Tm] = iterateTemps(obj, Ts_in, Tco2_in, t)
             % uses the developed semi-discrete heat exchanger model to
@@ -479,7 +484,7 @@ classdef HX < matlab.System
             % feedforward signal computed for steady state condition
             w_ = [obj.Ts_in_Prime; obj.Tco2_in_Prime; obj.fRef];
             CR = obj.Cz*inv(obj.Jx);
-            Kuw_ss = -inv(CR*obj.Ju)*(CR*obj.Jw);
+            Kuw_ss = -pinv(CR*obj.Ju)*(CR*obj.Jw - obj.Dzw);
             v_ff = [obj.vsRef; obj.vCO2Ref] + Kuw_ss*w_;
 
             if isnan(v_ff(1)) || isnan(v_ff(2))
@@ -490,13 +495,18 @@ classdef HX < matlab.System
                 mdot_CO2_ff = v_ff(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W); 
             end   
             
-            % feedback signal with lead-lag compensation               
-            Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
-                  (1 - exp(-(tg)/obj.tauLead));
-            Ky_ = [5e-6, 0; 0, 5e-2];
-            v_fb = Ky_*e_;
-            mdot_s_fb = v_fb(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
-            mdot_CO2_fb = v_fb(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
+            % feedback signal with lead-lag compensation 
+            if norm(e_) > 0.5
+                Fll = (1 - exp(-(tg)/obj.tauLag))/ ...
+                      (1 - exp(-(tg)/obj.tauLead));
+                Ky_ = [5e-4, 0; 0, 5e-2];
+                v_fb = Fll*Ky_*e_;
+                mdot_s_fb = v_fb(1)*(obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                mdot_CO2_fb = v_fb(2)*(obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
+            else
+                mdot_s_fb = 0;
+                mdot_CO2_fb = 0;
+            end
             
             % feedback and feedforward signals combined
             mdot_s = mdot_s_ff + mdot_s_fb;
