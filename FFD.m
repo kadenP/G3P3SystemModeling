@@ -1,4 +1,4 @@
-classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
+classdef FFD < matlab.System
     % This MATLAB system block simulates the heat loss as particles fall through a certain length of ducting. 
 
     % Public, nontunable properties
@@ -212,7 +212,7 @@ classdef FFD < matlab.System & matlab.system.mixin.CustomIcon
             % first reformulate as linear system with constant input
             u_ = [Ts_in; Tinf];
             b_ = obj.B*u_;
-            Ap = [obj.A, eye(2*obj.n); zeros(2*obj.n), zeros(2*obj.n)];
+            Ap = full([obj.A, eye(2*obj.n); zeros(2*obj.n), zeros(2*obj.n)]);
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
             % deconstruct to obtain desired solution

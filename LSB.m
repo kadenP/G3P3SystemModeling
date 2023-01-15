@@ -61,10 +61,11 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
           in4name = 'mdot_s_out';
           in5name = 't';
         end
-        function [out1name, out2name, out3name] = getOutputNamesImpl(~)
+        function [out1name, out2name, out3name, out4name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
-          out2name = 'ms';
-          out3name = 'qloss';
+          out2name = 'mdot_s_out';
+          out3name = 'ms';
+          out4name = 'qloss';
         end  
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -95,24 +96,22 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
             % system properties are changed externally.
 
         end
-        function [Ts_out, ms_, qloss] = ...
+        function [Ts_out, mdot_s_out_, ms_, qloss] = ...
                 stepImpl(obj, Ts_in, Tinf, mdot_s_in, mdot_s_out, t)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
             obj.dt = t - obj.tNow;
             
             % compute mass in bin
-            if obj.xFill < 0.001
+            if obj.xFill < 0.001 && mdot_s_out > 0 
                 warning('LSB near empty, mass flow rates auto-adjusted')
-                mdot_s_in = 0;
                 mdot_s_out = 0;
             end
-            if obj.xFill > 0.99
+            if obj.xFill > 0.99 && mdot_s_in > 0
                 warning('LSB near full, mass flow rates auto-adjusted')
                 mdot_s_in = 0;
-                mdot_s_out = 0;
             end
-            obj.ms = obj.ms0 + (mdot_s_in - mdot_s_out)*obj.dt;
+            obj.ms = obj.ms + (mdot_s_in - mdot_s_out)*obj.dt;
             ms_ = obj.ms;
             obj.xFill = obj.ms/(obj.rho_s*obj.phi_s*obj.Vbin);
                         
@@ -136,8 +135,9 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
             obj.Ts = Ts_out;
             qloss = obj.hinf*obj.As*(Ts_out - Tinf);
                                               
-            % update time
+            % update time and mass
             obj.tNow = obj.tNow + obj.dt;
+            mdot_s_out_ = mdot_s_out;
                                                                                                                 
         end       
         %% Backup/restore functions

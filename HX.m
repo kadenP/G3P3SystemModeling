@@ -1,5 +1,5 @@
 classdef HX < matlab.System
-    % This MATLAB system block simulates transient behavior of the particle-to-sCO2 heat exchanger. The particle, sCO2, and metal temperatures are computed at each time step accross the defined discrete mesh.
+    % This MATLAB system block simulates transient behavior of the particle-to-sCO2 heat exchanger. The particle, sCO2, and metal temperatures are computed at each time step accross the defined discrete mesh. To assign fixed mass flow rates or use an external control loop use a boolean 0 for the mode setting and assign flow rates. For automated flow controls with temperature setpoints use a boolean 0 and assign temperature setpoints.
 
     % Public, nontunable properties
     properties (Nontunable)       
@@ -12,8 +12,8 @@ classdef HX < matlab.System
         N_plate = 33                % number of parallel plates
         h_s = 450                   % (W/m2K) solid-wall heat transfer coefficient 
         h_CO2 = 3000                % (W/m2K) CO2 heat transfer coefficient      
-        Ts0 = 25                    % (°C) initial temperature of particles
-        Tco20 = 25                  % (°C) initial temperature of sCO2
+        Ts0 = 600                   % (°C) initial temperature of particles
+        Tco20 = 600                 % (°C) initial temperature of sCO2
         Tm0 = 25                    % (°C) initial temperature of metal
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
@@ -160,7 +160,7 @@ classdef HX < matlab.System
                                'N_plate'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...
-              'PropertyList', {'h_s', 'h_CO2', 'cp_s', 'rho_s', 'phi_s', ...
+              'PropertyList', {'Ts0', 'Tco20', 'Tm0', 'h_s', 'h_CO2', 'cp_s', 'rho_s', 'phi_s', ...
                                'cp_CO2', 'rho_CO2', 'cp_m', 'rho_m'});                            
           groups = [group1, group2];    
        end
@@ -230,11 +230,11 @@ classdef HX < matlab.System
                 if t < 120
                     mdot_s_out = 5;
                     mdot_CO2_out = 5;
-                    obj.vs = mdot_s_in/ ...
+                    obj.vs = mdot_s_out/ ...
                           (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
-                    obj.vCO2 = mdot_CO2_in/ ...
+                    obj.vCO2 = mdot_CO2_out/ ...
                           (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
-                else
+                elseif t >= 120 && Ts_in > 700
                     % set mass flow rates based on setpoint
                     obj.Ts_out_set = Ts_out_set;
                     obj.Tco2_out_set = Tco2_out_set;
@@ -245,6 +245,15 @@ classdef HX < matlab.System
                           (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
                     obj.vCO2 = mdot_CO2_in/ ...
                           (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W); 
+                else
+                    mdot_s_in = 5;
+                    mdot_CO2_in = 5;
+                    mdot_s_out = mdot_s_in;
+                    mdot_CO2_out = mdot_CO2_in;
+                    obj.vs = mdot_s_in/ ...
+                          (obj.rho_s*obj.phi_s*obj.t_s*obj.N_plate*obj.W);
+                    obj.vCO2 = mdot_CO2_in/ ...
+                          (obj.rho_CO2*obj.t_CO2*obj.N_plate*obj.W);
                 end
             end
                                                
@@ -412,7 +421,7 @@ classdef HX < matlab.System
             % first reformulate as linear system with constant input
             w_ = [Ts_in; Tco2_in];
             b_ = obj.B*w_;
-            Ap = [obj.A, eye(3*obj.n); zeros(3*obj.n), zeros(3*obj.n)];
+            Ap = full([obj.A, eye(3*obj.n); zeros(3*obj.n), zeros(3*obj.n)]);
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
             % deconstruct to obtain desired solution
