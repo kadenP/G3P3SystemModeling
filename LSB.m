@@ -104,11 +104,11 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
             
             % compute mass in bin
             if obj.xFill < 0.001 && mdot_s_out > 0 
-                warning('LSB near empty, mass flow rates auto-adjusted')
+%                 warning('LSB near empty, mass flow rates auto-adjusted')
                 mdot_s_out = 0;
             end
             if obj.xFill > 0.99 && mdot_s_in > 0
-                warning('LSB near full, mass flow rates auto-adjusted')
+%                 warning('LSB near full, mass flow rates auto-adjusted')
                 mdot_s_in = 0;
             end
             obj.ms = obj.ms + (mdot_s_in - mdot_s_out)*obj.dt;

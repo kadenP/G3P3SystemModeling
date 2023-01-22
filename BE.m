@@ -18,7 +18,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
         cp_m = 500                  % (J/kgK) metal specific heat
         rho_m = 8000                % (kg/m3) metal density 
         hinf = 10                   % (W/m2K) ambient convection coefficient  
-        wallInsulation              % elevator wall insulation info
+        wallInsulation = {}         % elevator wall insulation info
         hsw = 180                   % (W/m2K) solid-to-wall convection coefficient
     end
 
@@ -81,13 +81,14 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
           in3name = 'Tinf';
           in4name = 't';
         end
-        function [out1name, out2name, out3name, out4name, out5name] = ...
-                getOutputNamesImpl(~)
+        function [out1name, out2name, out3name, out4name, out5name, ...
+                out6name] = getOutputNamesImpl(~)
           out1name = 'Ts_out';
           out2name = 'mdot_s_out';
           out3name = 'Ts';
           out4name = 'Tm';
           out5name = 'x';
+          out6name = 'qloss';
         end   
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
@@ -119,7 +120,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             obj.P2 = 2*(obj.W + obj.tm) + 2*(obj.L + obj.tm);
             obj.Ms = obj.hsw*obj.P1/(obj.phi_s*obj.rho_s*obj.cp_s*obj.Acs);
             obj.Msm = obj.hsw*obj.P1/(obj.rho_m*obj.cp_m*obj.Acm);
-            obj.Mminf = obj.Uinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);  
+            obj.Mminf = obj.Uinf*obj.P2/(obj.rho_m*obj.cp_m*obj.Acm);
         end
         function resetImpl(obj)
             % Initialize / reset discrete-state properties
@@ -219,7 +220,7 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
             % first reformulate as linear system with constant input
             u_ = [Ts_in; Tinf];
             b_ = obj.B*u_;
-            Ap = [obj.A, eye(2*obj.n); zeros(2*obj.n), zeros(2*obj.n)];
+            Ap = full([obj.A, eye(2*obj.n); zeros(2*obj.n), zeros(2*obj.n)]);
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
             % deconstruct to obtain desired solution
@@ -237,14 +238,14 @@ classdef BE < matlab.System & matlab.system.mixin.CustomIcon
         function computeUinf(obj)
             % computes the overall heat transfer coefficient with the
             % available insulation information
-            N  = size(obj.wallInsulation{:, 1});
+%             N  = size(obj.wallInsulation{:, 1});
             Rtot = 0;
-            for i = 1:N
-                x1 = obj.wallInsulation{i, 2}(1);
-                x2 = obj.wallInsulation{i, 2}(2);
-                ki = obj.wallInsulation{i, 3};
-                Rtot = Rtot + (x2 - x1)/ki;                               
-            end
+%             for i = 1:N
+%                 x1 = obj.wallInsulation{i, 2}(1);
+%                 x2 = obj.wallInsulation{i, 2}(2);
+%                 ki = obj.wallInsulation{i, 3};
+%                 Rtot = Rtot + (x2 - x1)/ki;                               
+%             end
             % add convection
             Rtot = Rtot + 1/obj.hinf;
             obj.Uinf = 1/Rtot;                                               

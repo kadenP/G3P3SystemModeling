@@ -59,14 +59,19 @@ classdef EH < matlab.System & matlab.system.mixin.CustomIcon
 
         end
         function [Ts_out, mdot_out, Qin] = ...
-                stepImpl(obj, Ts_in, mdot_in)
+                stepImpl(obj, Ts_in, mdot_in, Tset)
             % Implement algorithm. Calculate y as a function of input u and
             % discrete states.
                         
-            % compute outlet flow rates           
+            % compute outlet flow rates 
             mdot_out = mdot_in;
-            Ts_out = Tset;
-            Qin = obj.cp_s*mdot_in*(Ts_out - Ts_in);
+            if mdot_in > 0
+                Qin = obj.cp_s*mdot_in*(Tset - Ts_in);
+                Ts_out = Tset;
+            else
+                Ts_out = Ts_in;
+                Qin = 0;
+            end
         end       
         %% Backup/restore functions
         function s = saveObjectImpl(obj)
