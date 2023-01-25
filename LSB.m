@@ -11,7 +11,7 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
         hinf = 10                   % (W/m2K) ambient heat transfer coefficient
         cp_s = 1250                 % (J/kgK) particle specific heat
         rho_s = 3500                % (kg/m3) particle density
-        phi_s = 0.6                 % solid volume fraction                                    
+        phi_s = 0.6                 % solid volume fraction
     end
 
     % properties that shouldn't be set by user
@@ -69,7 +69,7 @@ classdef LSB < matlab.System & matlab.system.mixin.CustomIcon
         end  
         function groups = getPropertyGroupsImpl
           group1 = matlab.system.display.SectionGroup( ...
-              'Title', 'Geometry Parameters', ...
+              'Title', 'Geometry and Simulation Parameters', ...
               'PropertyList', {'H', 'D'});          
           group2 = matlab.system.display.SectionGroup( ...
               'Title', 'Heat Transfer and Material Parameters', ...

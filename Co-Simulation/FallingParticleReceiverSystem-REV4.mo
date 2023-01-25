@@ -1213,7 +1213,7 @@ model FallingParticleReceiverSystem
       connect(IntermediateStorage.ParticleOutlet, IntermediateStorageDownComer.ParticleInlet) annotation(
         Line(points = {{60, 0}, {60, 0}, {60, -20}, {60, -20}}));
       connect(HotBinDischarge.ParticleOutlet, HeatExchangerJunction.ParticleInlet2) annotation(
-        Line(points = {{-40, 10}, {-70, 10}, {-70, 10}, {-70, 10}}));
+        Line(points = {{-40, 10}, {-70, 10}}));
       connect(BucketElevatorDownComer.ParticleInlet, Elevator.ParticleOutlet) annotation(
         Line(points = {{60, 280}, {100, 280}, {100, 136}, {120, 136}, {120, 136}}));
       connect(BucketElevatorDownComer.ParticleOutlet, ReceiverDiverter.ParticleInlet) annotation(
