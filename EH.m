@@ -65,7 +65,7 @@ classdef EH < matlab.System & matlab.system.mixin.CustomIcon
                         
             % compute outlet flow rates 
             mdot_out = mdot_in;
-            if mdot_in > 0
+            if mdot_in > 0 && Ts_in < Tset
                 Qin = obj.cp_s*mdot_in*(Tset - Ts_in);
                 Ts_out = Tset;
             else

@@ -66,8 +66,8 @@ classdef SJ < matlab.System & matlab.system.mixin.CustomIcon
                         
             % compute outlet flow rates           
             mdot_out = mdot_in1 + mdot_in2;
-            Ts_out = mdot_in1*(Ts_in1 - obj.Tref) + ...
-                     mdot_in2*(Ts_in2 - obj.Tref);
+            Ts_out = (mdot_in1*(Ts_in1 - obj.Tref) + ...
+                     mdot_in2*(Ts_in2 - obj.Tref))/mdot_out;
         end       
         %% Backup/restore functions
         function s = saveObjectImpl(obj)

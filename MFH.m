@@ -171,7 +171,7 @@ classdef MFH < matlab.System & matlab.system.mixin.CustomIcon
             % first reformulate as linear system with constant input
             u_ = Ts_in;
             b_ = obj.B*u_;
-            Ap = [obj.A, eye(obj.n); zeros(obj.n), zeros(obj.n)];
+            Ap = full([obj.A, eye(obj.n); zeros(obj.n), zeros(obj.n)]);
             xx0 = [obj.x0; b_];               
             xx = expm(t*Ap)*xx0;
             % deconstruct to obtain desired solution
